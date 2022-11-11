@@ -1,0 +1,5 @@
+{
+  "prefix": "..\\data\\freebase_mtr100_mte100-",
+  "type": "train",
+  "log_path": "..\\szt_loggings\\test\\"
+}
