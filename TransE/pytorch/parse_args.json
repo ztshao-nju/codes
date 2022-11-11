@@ -1,0 +1,8 @@
+{
+  "prefix": "..\\data\\freebase_mtr100_mte100-",
+  "type": "train",
+  "path": "..\\data\\freebase_mtr100_mte100-train.txt",
+  "eid_list_path": "..\\data\\freebase_mtr100_mte100-eid_list.txt",
+  "rid_list_path": "..\\data\\freebase_mtr100_mte100-rid_list.txt",
+  "log_path": "..\\szt_loggings\\test\\"
+}

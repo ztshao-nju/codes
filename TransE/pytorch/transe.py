@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import random
+from data_process import logger
+
 
 def norm2(emb):
     """
@@ -10,6 +12,18 @@ def norm2(emb):
     n_emb = emb.weight.data.clone()  # clone + data(不在计算图中)
     n_emb = n_emb / torch.sum(torch.pow(n_emb, 2), dim=1, keepdim=True)  # 2范数 忽略开方
     emb.weight.data.copy_(n_emb)
+
+
+def unique_digit(x, num):
+    n_x = random.randint(0, num - 1)
+    loop = 0
+    while n_x == x:
+        n_x = random.randint(0, num - 1)
+        loop = loop + 1
+        if loop >= 100:
+            logger.info('循环随机数超过100轮了 暂停')
+            return x  # TODO: 不知道怎么处理 先返回原值吧
+    return n_x
 
 
 def norm1(emb):
@@ -43,9 +57,6 @@ class TransE(nn.Module):
     def norm2_entity(self):
         norm2(self.e_emb)
 
-    def forward(self, *input):
-        pass
-
     def create_neg_triples(self, pos_triples):
         neg_h, neg_r, neg_t = [], [], []
         triple_num = len(pos_triples[0])
@@ -53,11 +64,22 @@ class TransE(nn.Module):
             h = pos_triples[0][i]
             r = pos_triples[1][i]
             t = pos_triples[2][i]
+
             p = random.random()
+            if p < 0.5:
+                h = unique_digit(h, self.e_len)
+            else:
+                t = unique_digit(t, self.e_len)
+
             neg_h.append(h)
             neg_r.append(r)
             neg_t.append(t)
+
         neg_triples = []
         for neg in [neg_h, neg_r, neg_t]:
             neg_triples.append(torch.tensor(neg))
         return neg_triples
+
+    def forward(self, pos_triple, neg_triple):
+
+        pass
