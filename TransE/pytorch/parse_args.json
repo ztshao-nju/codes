@@ -4,5 +4,11 @@
   "path": "..\\data\\freebase_mtr100_mte100-train.txt",
   "eid_list_path": "..\\data\\freebase_mtr100_mte100-eid_list.txt",
   "rid_list_path": "..\\data\\freebase_mtr100_mte100-rid_list.txt",
-  "log_path": "..\\szt_loggings\\test\\"
+  "log_path": "..\\szt_loggings\\test\\",
+  "margin": 4,
+  "n_epoch": 500,
+  "batch_size": 9600,
+  "dimension": 50,
+  "norm": 1,
+  "lr": 0.01
 }

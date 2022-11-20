@@ -26,7 +26,7 @@ class logFrame:
 
             self.logger.addHandler(out)
             out.setFormatter(out_formatter)
-            out.setLevel(logging.INFO)
+            out.setLevel(logging.DEBUG)
 
         return self.logger
 

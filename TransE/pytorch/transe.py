@@ -4,6 +4,15 @@ import random
 from data_process import logger
 
 
+def get_norm1(vec):
+    return torch.sum(torch.abs(vec), dim=1)
+
+
+def get_norm2(vec):
+    return torch.sum(torch.pow(vec, 2), dim=1)  # in order to save time, remove sqrt
+    # return torch.sqrt(torch.sum(torch.pow(vec, 2), dim=1))
+
+
 def norm2(emb):
     """
     :param emb: nn.Embedding
@@ -33,13 +42,14 @@ def norm1(emb):
 
 
 class TransE(nn.Module):
-    def __init__(self, id_triples, id2e, id2r, margin, dim, norm=2):
+    def __init__(self, id_triples, id2e, id2r, margin, dim, device, norm=2):
         super(TransE, self).__init__()
         self.id_triples = id_triples
         self.id2e = id2e
         self.id2r = id2r
         self.margin = margin
         self.dim = dim
+        self.device = device
         self.norm = norm
 
         self.e_len = len(id2e)
@@ -48,13 +58,14 @@ class TransE(nn.Module):
 
         self.e_emb = nn.Embedding(self.e_len, dim)
         self.r_emb = nn.Embedding(self.r_len, dim)
+        self.criterion = nn.MarginRankingLoss(self.margin, reduction='mean')
 
     def my_initialize(self):
         nn.init.xavier_uniform_(self.r_emb.weight)
         norm2(self.r_emb)  # 规范化 除以自身的2范数
         nn.init.xavier_uniform_(self.e_emb.weight)
 
-    def norm2_entity(self):
+    def norm2_entities(self):
         norm2(self.e_emb)
 
     def create_neg_triples(self, pos_triples):
@@ -80,6 +91,27 @@ class TransE(nn.Module):
             neg_triples.append(torch.tensor(neg))
         return neg_triples
 
-    def forward(self, pos_triple, neg_triple):
+    def calcu_dist(self, triple):
+        h, r, t = triple
+        h = h.to(self.device)
+        r = r.to(self.device)
+        t = t.to(self.device)
+        h_emb = self.e_emb(h)
+        r_emb = self.r_emb(r)
+        t_emb = self.e_emb(t)
+        res = h_emb + r_emb - t_emb
+        return get_norm1(res) if self.norm == 1 else get_norm2(res)
 
-        pass
+    # calcu_loss
+    def forward(self, pos_triple, neg_triple):
+        # nn.MarginRankingLoss(margin)
+        # loss(x1, x2, y) = max(0, -y * (x1 - x2) + margin)
+        # TransE Loss: max(0, d - d' + margin)
+        # therefore, y = -1, x1 = d, x2 = d', margin = margin
+
+        x1 = self.calcu_dist(pos_triple)
+        x2 = self.calcu_dist(neg_triple)
+        y = torch.ones(1, 1)
+        num = len(x1)
+        y = y.new_full((1, num), -1).to(self.device)
+        return self.criterion(x1, x2, y)  # x1 x2 y size=[N]
