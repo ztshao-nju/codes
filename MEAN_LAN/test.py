@@ -6,5 +6,11 @@ print(norm)
 a2 = a / norm
 
 
-for i in range(10):
-    print(i)
+# for i in range(10):
+#     print(i)
+
+v = [1, 2, 3]
+a, b, c = tuple(v)
+print(a, b, c)
+d = 4
+print('{},{},{},{}'.format(*tuple(v), d))

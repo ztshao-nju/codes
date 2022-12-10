@@ -8,29 +8,22 @@ import numpy as np
 
 class KGDataset(Dataset):
 
-    def __init__(self, args, g, logger):  # g是data_graph 中的 Graph
-        self.args = args
-        self.predict_mode = args.predict_mode
-        self.g = g
+    def __init__(self, cnt_e, triplets, num_neg, predict_mode, logger):  # g是data_graph 中的 Graph
+        # self.args = args
+        self.num_neg = num_neg
+        self.predict_mode = predict_mode
         self.logger = logger
 
+        self.triplets = triplets
+        self.cnt_e = cnt_e
+
     def __getitem__(self, index):
-        pos_triplet = self.g.train_triplets[index]
-        neg_triplet = np.tile(np.asarray(copy.deepcopy(pos_triplet)), self.args.num_neg)
-        for i in range(self.args.num_neg):
-            base_id = i * 3
-            if self.predict_mode == 'head':  # 修改tail
-                neg_triplet[base_id + 2] = random.randint(0, self.g.cnt_e - 1)
-            elif self.predict_mode == 'tail':
-                neg_triplet[base_id + 0] = random.randint(0, self.g.cnt_e - 1)
-            else:
-                self.logger.info('没有识别出 KGDataset 的 predict_mode')
-                sys.exit(0)
-        neg_triplet = neg_triplet.tolist()
+        pos_triplet = self.triplets[index]
+        neg_triplet = create_corrupt_triplets(self.cnt_e, pos_triplet, self.num_neg, self.predict_mode)
         return pos_triplet, neg_triplet
 
     def __len__(self):
-        return len(self.g.train_triplets)
+        return len(self.triplets)
 
 def split_triplet(triplets):  # Tensor (num, 3)
     triplets = torch.transpose(triplets, 0, 1)
@@ -47,3 +40,13 @@ def move_to_device(batch_triplet, device):
     r = r.to(device)
     t = t.to(device)
     return h, r, t
+
+def create_corrupt_triplets(cnt_e, pos_triplet, corrupt_num, mode):
+    neg_triplets = np.tile(np.asarray(copy.deepcopy(pos_triplet)), corrupt_num)
+    for i in range(corrupt_num):
+        base_id = i * 3
+        if mode == 'head':  # 修改tail
+            neg_triplets[base_id + 2] = random.randint(0, cnt_e - 1)
+        elif mode == 'tail':
+            neg_triplets[base_id + 0] = random.randint(0, cnt_e - 1)
+    return neg_triplets.tolist()

@@ -1,6 +1,6 @@
 {
   "data_dir": "data\\fb15K\\head-10",
-  "save_dir": "checkpoints",
+  "save_dir": "checkpoints\\mean_model",
   "log_dir": "checkpoints\\log_info",
 
   "aggregate_type": "gnn_mean",
@@ -10,18 +10,15 @@
   "max_neighbor": 64,
   "dim": 100,
 
-  "margin": 1.0,
+  "margin": 300.0,
   "weight_decay": 0,
   "learning_rate": 1e-3,
 
-  "num_epoch": 1000,
+  "num_epoch": 10,
   "batch_size": 10,
   "epoch_per_checkpoint": 50,
-  "num_neg": 2,
+  "num_neg": 1,
 
-  "loss_function": "margin",
-  "score_function": "TransE",
-  "corrupt_mode": "partial",
   "predict_mode": "head",
-  "type": "train"
+  "type": "test"
 }

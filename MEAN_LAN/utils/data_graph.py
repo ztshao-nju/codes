@@ -74,6 +74,7 @@ class Graph:
         self.dev_triplets = self.reconstruct_triples(dev_triplets)
         self.test_triplets = self.reconstruct_triples(test_triplets)
         self.train_triplets = train_triplets
+        self.aux_triplets = train_triplets
 
     # 6. 重新整理 dev_triplets, test_triplets
     def reconstruct_triples(self, triplets):
