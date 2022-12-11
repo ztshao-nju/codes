@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as f
 from .encoder import Encoder_ATTENTION, Encoder_Mean
 
+
 class Framework(nn.Module):
 
     def __init__(self, g, args, device):
@@ -11,7 +12,7 @@ class Framework(nn.Module):
 
         self.train_g = torch.tensor(g.train_g, dtype=torch.long).to(device)  # (e_num, max_neighbor, 2)
         self.train_w = torch.tensor(g.train_w, dtype=torch.float).to(device)  # (e_num, max_neighbor)
-        self.corr = torch.tensor(g.corr, dtype=torch.float).to(device)   # self.corr[j][i] 表示 P(i->j)
+        self.corr = torch.tensor(g.corr, dtype=torch.float).to(device)  # self.corr[j][i] 表示 P(i->j)
 
         self.cnt_e = g.cnt_e
         self.cnt_r = g.cnt_r
@@ -25,8 +26,6 @@ class Framework(nn.Module):
         self.dim = args.dim
 
         self.margin = args.margin
-        self.weight_decay = args.weight_decay
-        self.learning_rate = args.learning_rate
 
         # loss(x1, x2, y) = max(0, -y*(x1-x2)+margin)
         # max(0, -(-1) * (neg - pos) + margin)  y=-1    neg=x1, pos=x2
@@ -34,10 +33,11 @@ class Framework(nn.Module):
 
         ##############################################
         self.e_emb = nn.Embedding(self.cnt_e + 1, self.dim)  # +1 是为了处理没有遇到的实体 id是cnt_e
-        self.r_emb = nn.Embedding(self.cnt_r, self.dim)
+        self.r_emb = nn.Embedding(self.cnt_r, self.dim)  # r一定出现过 不用+1
 
         if self.aggregate_type == 'attention':
-            self.encoder = Encoder_ATTENTION(self.cnt_e, self.cnt_r, self.dim)
+            self.encoder = Encoder_ATTENTION(self.cnt_e, self.cnt_r, self.dim, self.use_logic_attention,
+                                             self.use_nn_attention)
         elif self.aggregate_type == 'mean':
             self.encoder = Encoder_Mean(self.cnt_r, self.dim)
         self.encoder.to(device)
@@ -69,12 +69,12 @@ class Framework(nn.Module):
         # assert nan_num == 0
 
         # 3 输入encoder 获得实体的表示e_i^O
-
         if self.aggregate_type == 'attention':  # LAN
             e_out = self.encoder(batch_nei_rid, batch_nei_e_emb, batch_nei_rw, batch_q_rid)
         else:
             e_out = self.encoder(batch_nei_rid, batch_nei_e_emb)
         return e_out
+
     def decoder_score(self, h_out, t_out, r_id):
         r_out = self.r_emb(r_id)
         batch_score = self.get_score(h_out, r_out, t_out)
@@ -85,6 +85,7 @@ class Framework(nn.Module):
         t_out = self.encoder_eout(tp, rp + self.cnt_r)
         batch_score = self.decoder_score(h_out, t_out, rp)
         return batch_score
+
     def task1_loss(self, batch_pos_triplet_id, batch_neg_triplet_id):
         hp, rp, tp = batch_pos_triplet_id
         hn, rn, tn = batch_neg_triplet_id
@@ -100,6 +101,7 @@ class Framework(nn.Module):
         tp_emb = self.e_emb(r)
         rp_emb = self.e_emb(t)
         return self.get_score(hp_emb, tp_emb, rp_emb)
+
     def task2_loss(self, batch_pos_triplet_id, batch_neg_triplet_id):
         h, r, t = batch_pos_triplet_id
         pos_score = self.task2_batch_score(batch_pos_triplet_id)

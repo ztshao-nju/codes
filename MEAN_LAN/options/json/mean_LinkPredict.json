@@ -1,7 +1,8 @@
 {
-  "data_dir": "data\\fb15K\\head-10",
-  "save_dir": "checkpoints\\mean_model",
-  "log_dir": "checkpoints\\log_info",
+  "kg_dir": "fb15K",
+  "mode": "head-10",
+  "save_dir": "mean_model",
+  "log_dir": "mean_log_info",
 
   "aggregate_type": "mean",
   "use_logic_attention":0,
@@ -10,13 +11,13 @@
   "max_neighbor": 64,
   "dim": 100,
 
-  "margin": 300.0,
+  "margin": 1.0,
   "weight_decay": 0,
   "learning_rate": 1e-3,
 
-  "num_epoch": 1,
-  "batch_size": 10,
-  "epoch_per_checkpoint": 1,
+  "num_epoch": 300,
+  "batch_size": 1024,
+  "epoch_per_checkpoint": 50,
   "num_neg": 1,
 
   "predict_mode": "head",

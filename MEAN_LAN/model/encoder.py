@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as f
 
+
 class Encoder_Mean(nn.Module):
     def __init__(self, cnt_r, dim):
         super().__init__()
@@ -17,8 +18,9 @@ class Encoder_Mean(nn.Module):
         batch_nei_e_Tr_emb = self.projection(batch_nei_e_emb, w_r)  # :(batch_size, max_neighbor, dim)
         return torch.mean(batch_nei_e_Tr_emb, dim=1)  # 对邻居信息均值聚合
 
+
 class Encoder_ATTENTION(nn.Module):
-    def __init__(self, cnt_e, cnt_r, dim):
+    def __init__(self, cnt_e, cnt_r, dim, use_logic_attention, use_nn_attention):
         super().__init__()
         self.w_r = nn.Embedding(cnt_r * 2 + 1, dim)  # 抽取 w_r
         self.zq_emb = nn.Embedding(cnt_r * 2, dim)
@@ -29,11 +31,13 @@ class Encoder_ATTENTION(nn.Module):
 
         self.softmax = nn.Softmax(dim=-1)
 
+        self.use_logic_attention = use_logic_attention
+        self.use_nn_attention = use_nn_attention
+
     def projection(self, e, w_r):
         norm2w_r = f.normalize(w_r, p=2, dim=-1)
         # norm2w_r = w_r / torch.norm(w_r, dim=-1, keepdim=True)  # 要求 w_r 2范数 为 1
         return e - torch.sum(e * norm2w_r, dim=-1, keepdim=True) * norm2w_r
-
 
     def get_attn(self, batch_nei_rid, batch_nei_e_Tr_emb, batch_nei_rw, batch_q_rid):
         """
@@ -44,6 +48,9 @@ class Encoder_ATTENTION(nn.Module):
         :param batch_q_rid:          (batch_size, )
         :return:
         """
+        if self.use_logic_attention and not self.use_nn_attention:
+            return batch_nei_rw
+
         max_neighbor = batch_nei_rid.shape[1]
 
         # 1. 计算非标准化的NN注意力权重: alpha_{j|i,q}^{'}  :(batch_size, max_neighbor)
@@ -63,10 +70,11 @@ class Encoder_ATTENTION(nn.Module):
         alpha = self.softmax(_alpha)  # (batch_size, max_neighbor)
 
         # 3. 计算Logic+NN权重
-        attn = alpha + batch_nei_rw  # (batch_size, max_neighbor)
-
+        if self.use_logic_attention:
+            attn = alpha + batch_nei_rw  # (batch_size, max_neighbor)
+        else:
+            attn = alpha
         return attn
-
 
     def forward(self, batch_nei_rid, batch_nei_e_emb, batch_nei_rw, batch_q_rid):
         # 1 获得 Tr(ej)   :(batch_size, max_neighbor, dim)

@@ -20,6 +20,7 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # device = "cpu"
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
+
 # 提供默认参数 args_dir提供json参数覆盖默认参数
 def get_params(args_dir=None):
     parser = argparse.ArgumentParser(description='Run Model MEAN or LAN')
@@ -47,7 +48,6 @@ def get_params(args_dir=None):
     parser.add_argument('--predict_mode', type=str, default="head")
     parser.add_argument('--type', type=str, default="train")
 
-
     args = ARGs(parser.parse_args())
     if args_dir != None:
         args.load_args(args_dir)
@@ -56,6 +56,7 @@ def get_params(args_dir=None):
     args.save_dir = os.path.join("checkpoints", args.save_dir)
     args.log_dir = os.path.join("checkpoints", args.log_dir)
     return args
+
 
 def run_training(framework, args, logger):
     start = time.time()
@@ -85,14 +86,14 @@ def run_training(framework, args, logger):
             batch_t = time.time()
             batch_id += 1
             if batch_id % 20 == 0:
-                content = 'epoch:{} batch:{} loss:{:.12f} time:{:.1f}'.format(curr_epoch, batch_id, loss, batch_t - start)
-                # if batch_id % 1000 == 0:
-                #     logger.info(content)
-                logger.info(content)
+                content = 'epoch:{} batch:{} loss:{:.12f} time:{:.1f}'.format(curr_epoch, batch_id, loss,
+                                                                              batch_t - start)
+                logger.debug(content)
 
         all_epoch_loss.append(curr_epoch_loss)
         epoch_t = time.time()
-        logger.info('[curr epoch over] epoch:{} loss:{:.12f} time:{:.1f}'.format(curr_epoch, curr_epoch_loss, epoch_t - start))
+        logger.info(
+            '[curr epoch over] epoch:{} loss:{:.12f} time:{:.1f}'.format(curr_epoch, curr_epoch_loss, epoch_t - start))
 
         if (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
             # 判断性能 保留最好的性能
@@ -147,7 +148,5 @@ if __name__ == '__main__':
     # 5. 评估选择模型
     if args.type == "test":
         logger.info('================== start evaluation ==================')
-        # sample_pos_num=1000, sample_true_num=1000 数据生成是10分钟
         hit_nums, mrr = eval('test', framework, g, args, device, logger, sample_pos_num=1000, sample_true_num=1000)
         logger.info('hit@1:{:.12f} hit@3:{:.12f} hit@10:{:.12f} mrr:{:.12f}'.format(*tuple(hit_nums), mrr))
-        # hits, mrr = eval('train', framework, g, args, device, sample_pos_num=1000, sample_true_num=100)

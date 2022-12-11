@@ -2,7 +2,7 @@
   "kg_dir": "fb15K",
   "mode": "head-10",
   "save_dir": "lan_model",
-  "log_dir": "log_info",
+  "log_dir": "lan_log_info",
 
   "aggregate_type": "attention",
   "use_logic_attention":1,
@@ -21,5 +21,5 @@
   "num_neg": 1,
 
   "predict_mode": "head",
-  "type": "test"
+  "type": "train"
 }

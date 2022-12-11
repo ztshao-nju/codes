@@ -3,6 +3,7 @@ import json
 import sys
 import time
 
+
 class ARGs:
     def __init__(self, args=None):
         if args != None:
@@ -14,13 +15,12 @@ class ARGs:
             args_dict = json.load(f)
             f.close()
         for k, v in args_dict.items():
-                setattr(self, k, v)
+            setattr(self, k, v)
 
     def output(self):
         for item in dir(self):
             if not item.startswith('__') and not item.startswith("output"):
                 print(item, self.__getattribute__(item))
-
 
 # path = '../pytorch/parse_args.json'
 # args = load_args(path)
@@ -32,4 +32,3 @@ class ARGs:
 #
 # log = logFrame()
 # logger = log.getlogger(args.log_path)
-

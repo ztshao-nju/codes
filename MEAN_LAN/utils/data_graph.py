@@ -17,6 +17,7 @@ def load_id_map(id_path):
             item2id[item] = int(index)
     return id2item, item2id
 
+
 # 读取 triplet_path 路径中的三元组
 def load_triples(triplet_path, logger):
     _id_triples = []
@@ -29,6 +30,7 @@ def load_triples(triplet_path, logger):
             _id_triples.append([h, r, t])
     logger.info('[加载三元组] {} 数据集 三元组数目: {}'.format(triplet_path, len(_id_triples)))
     return _id_triples
+
 
 # 读取所有数据
 def load_data(args, logger):
@@ -47,6 +49,7 @@ def load_data(args, logger):
     return id2e, e2id, id2r, r2id, \
            train_triplets, aux_triplets, dev_triplets, test_triplets
 
+
 class Graph:
     # 处理数据
     def __init__(self, args, logger):
@@ -61,7 +64,7 @@ class Graph:
         self.train_w = None  # np (cnt_e, max_neighbor) weight-denominator
         # 1. 读取数据
         self.id2e, self.e2id, self.id2r, self.r2id, \
-            train_triplets, aux_triplets, dev_triplets, test_triplets = \
+        train_triplets, aux_triplets, dev_triplets, test_triplets = \
             load_data(args, logger)
 
         # 2.3. 获取cnt数据 + 构造graph + 计算r之间的correlation(train,没有aux)
@@ -140,7 +143,7 @@ class Graph:
             for id in range(num_neighbor_list):  # 遍历实体e的每个邻居信息 ri, ti
                 ri = neighbor_list[id]
                 freq[ri] += 1
-                for id2 in range(id+1, num_neighbor_list):
+                for id2 in range(id + 1, num_neighbor_list):
                     rj = neighbor_list[id2]
                     corr[ri][rj] += 1
                     corr[rj][ri] += 1
@@ -180,4 +183,3 @@ class Graph:
             if t not in tr_e_set and h in tr_e_set:
                 graph[t].append([r + self.cnt_r, h, 0.])
         self.graph = graph
-
