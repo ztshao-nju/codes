@@ -4,9 +4,10 @@ import sys
 import time
 
 class ARGs:
-    def __init__(self, args):
-        for arg in vars(args):
-            setattr(self, arg, getattr(args, arg))
+    def __init__(self, args=None):
+        if args != None:
+            for arg in vars(args):
+                setattr(self, arg, getattr(args, arg))
 
     def load_args(self, args_dir):
         with open(args_dir, 'r') as f:

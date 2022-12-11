@@ -11,7 +11,7 @@ class logFrame:
 
             # 控制台输出
             control = logging.StreamHandler()
-            control_formatter = logging.Formatter(fmt="%(asctime)s,%(filename)s,行号:%(lineno)d，级别:%(levelname)s，"
+            control_formatter = logging.Formatter(fmt="%(asctime)s,%(filename)s,行号:%(lineno)d,"
                                               "描述:%(message)s", datefmt="%Y/%m/%d %H:%M:%S")
             self.add_output(self.logger, control, control_formatter, logging.INFO)
             # filename=log_path + "./log/{}_log.txt".format(time.strftime("%Y_%m_%d %H_%M_%S", time.localtime()))
@@ -23,7 +23,7 @@ class logFrame:
                 file = logging.FileHandler(
                     filename=log_path,
                     encoding="utf8")
-                file_formatter = logging.Formatter(fmt="%(asctime)s,%(filename)s,行号:%(lineno)d，级别:%(levelname)s，"
+                file_formatter = logging.Formatter(fmt="%(asctime)s,%(filename)s,行号:%(lineno)d,"
                                                     "描述:%(message)s", datefmt="%Y/%m/%d %H:%M:%S")
                 self.add_output(self.logger, file, file_formatter, logging.DEBUG)
 

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as f
 
 class Encoder_Mean(nn.Module):
     def __init__(self, cnt_r, dim):
@@ -7,7 +8,8 @@ class Encoder_Mean(nn.Module):
         self.w_r = nn.Embedding(cnt_r * 2 + 1, dim)
 
     def projection(self, e, w_r):
-        norm2w_r = w_r / torch.norm(w_r, dim=-1, keepdim=True)  # 要求 w_r 2范数 为 1
+        norm2w_r = f.normalize(w_r, p=2, dim=-1)
+        # norm2w_r = w_r / torch.norm(w_r, dim=-1, keepdim=True)  # 要求 w_r 2范数 为 1
         return e - torch.sum(e * norm2w_r, dim=-1, keepdim=True) * norm2w_r
 
     def forward(self, batch_nei_rid, batch_nei_e_emb):
@@ -28,7 +30,8 @@ class Encoder_ATTENTION(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
 
     def projection(self, e, w_r):
-        norm2w_r = w_r / torch.norm(w_r, dim=-1, keepdim=True)  # 要求 w_r 2范数 为 1
+        norm2w_r = f.normalize(w_r, p=2, dim=-1)
+        # norm2w_r = w_r / torch.norm(w_r, dim=-1, keepdim=True)  # 要求 w_r 2范数 为 1
         return e - torch.sum(e * norm2w_r, dim=-1, keepdim=True) * norm2w_r
 
 

@@ -2,6 +2,9 @@ import numpy as np
 import os
 from collections import defaultdict
 
+import torch
+
+
 # 加载 paid_pathth 路径中 item和id之间的map
 def load_id_map(id_path):
     id2item, item2id = {}, {}
@@ -99,6 +102,15 @@ class Graph:
             num = min(self.max_neighbor, len(rlist))  # 保留的邻居信息数量
             train_g[ei][:num, :] = np.asarray(rlist)[:num, :2]  # (num, 2)
             train_w[ei][:num] = np.asarray(rlist)[:num, 2]  # (num, 1)
+
+        # minv = np.min(train_w)
+        # print('minv:{}'.format(minv))
+        # for ei in range(self.cnt_e):
+        #     for id in range(self.max_neighbor):
+        #         train_w[ei][id] = max(0.00000001, train_w[ei][id])
+        # minv = np.min(train_w)
+        # print('minv:{}'.format(minv))
+
         return train_g, train_w
 
     # 4. 计算 Logic 权重分母: max({P(r'->r)|r' \in Nr(ei))})      graph:train+aux读取的数据
@@ -133,6 +145,7 @@ class Graph:
                     corr[ri][rj] += 1
                     corr[rj][ri] += 1
         for ri in range(self.cnt_r * 2):
+            assert freq[ri] != 0
             corr[ri] = (corr[ri] * 1.0) / freq[ri]
 
         self.corr = corr.transpose()  #

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from .encoder import Encoder_ATTENTION
+import torch.nn.functional as f
+from .encoder import Encoder_ATTENTION, Encoder_Mean
 
 class Framework(nn.Module):
 
@@ -35,7 +36,10 @@ class Framework(nn.Module):
         self.e_emb = nn.Embedding(self.cnt_e + 1, self.dim)  # +1 是为了处理没有遇到的实体 id是cnt_e
         self.r_emb = nn.Embedding(self.cnt_r, self.dim)
 
-        self.encoder = Encoder_ATTENTION(self.cnt_e, self.cnt_r, self.dim)
+        if self.aggregate_type == 'attention':
+            self.encoder = Encoder_ATTENTION(self.cnt_e, self.cnt_r, self.dim)
+        elif self.aggregate_type == 'mean':
+            self.encoder = Encoder_Mean(self.cnt_r, self.dim)
         self.encoder.to(device)
 
     def encoder_eout(self, batch_e_id, batch_q_rid):
@@ -57,9 +61,12 @@ class Framework(nn.Module):
         # 获取每个batch里每个neighbor的 分子:     corr[qid][nei_rid]   :(batch_size, neighbor) P(r-q) = corr[q][r]
         batch_nei_q_rid = batch_q_rid.unsqueeze(-1).tile((1, self.max_neighbor))  # (batch_size, max_neighbor)
         batch_nei_r_numerator = self.corr[batch_nei_q_rid, batch_nei_rid]  # (batch_size, max_neighbor)   分子
-        batch_nei_rw = batch_nei_r_numerator / (batch_nei_r_denominator + 0.0001)  # Logic 权重
+        # batch_nei_rw = batch_nei_r_numerator / (batch_nei_r_denominator)  # Logic 权重
+        batch_nei_rw = batch_nei_r_numerator / (batch_nei_r_denominator + 1)  # Logic 权重
         nan_num = torch.sum(torch.isnan(batch_nei_rw))
-        assert nan_num == 0
+        # if nan_num != 0:
+        #     print('nan_num:{}'.format(nan_num))
+        # assert nan_num == 0
 
         # 3 输入encoder 获得实体的表示e_i^O
 
@@ -107,4 +114,7 @@ class Framework(nn.Module):
         return loss1 + loss2
 
     def get_score(self, h, r, t):  # 评估越好的 分数越大
+        h = f.normalize(h, p=2, dim=1)
+        r = f.normalize(r, p=2, dim=1)
+        t = f.normalize(t, p=2, dim=1)
         return -torch.sum(torch.abs(h + r - t), dim=1)  # (batch_size, )
