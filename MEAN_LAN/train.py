@@ -57,8 +57,31 @@ def get_params(args_dir=None):
     args.data_dir = os.path.join("data", args.kg_dir, args.mode)
     args.save_dir = os.path.join("checkpoints", args.save_dir)
     args.log_dir = os.path.join("checkpoints", args.log_dir)
+    if args.checkpoint_path != None:
+        args.checkpoint_path = os.path.join("checkpoints", "checkpoint_path")
+
+    assert not (args.resume == 1 and args.checkpoint_path == None)
     return args
 
+def save_checkpoint(framework, optimizer, curr_epoch):
+    checkpoint = {
+        "net": framework.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "epoch": curr_epoch
+    }
+    checkpoint_path = os.path.join("checkpoints")
+    if not os.path.exists(checkpoint_path):
+        os.mkdir(checkpoint_path)
+    torch.save(checkpoint, os.path.join('checkpoints', 'ckpt_%s.pth' % (str(curr_epoch + 1))))
+
+def load_checkpoint(args, framework, optimizer):
+    logger.info(' 加载断点:{} 恢复训练 '.format(args.checkpoint_path))
+    checkpoint = torch.load(args.checkpoint_path)  # 加载断点
+    framework.load_state_dict(checkpoint['net'])  # 加载参数
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    start_epoch = checkpoint['epoch']
+    args.resume = False
+    return start_epoch
 
 def run_training(framework, args, logger):
     start = time.time()
@@ -70,7 +93,9 @@ def run_training(framework, args, logger):
     logger.info('================== start training ==================')
     best_performance = 0  # mrr
 
-    for curr_epoch in range(args.num_epoch):
+    if args.resume:  # 恢复断点
+        start_epoch = load_checkpoint(args, framework, optimizer)
+    for curr_epoch in range(start_epoch, args.num_epoch):
         framework.train()
 
         curr_epoch_loss = 0
@@ -90,33 +115,44 @@ def run_training(framework, args, logger):
             batch_t = time.time()
             batch_id += 1
             if batch_id % 20 == 0:
-                content = 'epoch:{} batch:{} loss:{:.6f} time:{:.1f}'.format(curr_epoch, batch_id, loss,
-                                                                             batch_t - start)
-                logger.debug(content)
-
+                logger.debug('epoch:{} batch:{} loss:{} time:{}'.format(curr_epoch, batch_id, loss,
+                                                                             batch_t - start))
         all_epoch_loss.append(curr_epoch_loss)
         epoch_t = time.time()
         logger.info(
-            '[curr epoch over] epoch:{} loss:{:.6f} time:{:.1f}'.format(curr_epoch, curr_epoch_loss, epoch_t - start))
+            '[curr epoch over] epoch:{} loss:{} time:{}'.format(curr_epoch, curr_epoch_loss, epoch_t - start))
 
         if (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
-            framework.eval()
-            # 判断性能 保留最好的性能
+            # 判断性能
             eval_dataset = EvalDataset(g.dev_triplets,
                                        g.train_triplets + g.aux_triplets, g.cnt_e, 'head', logger)
-            dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=2)
+            batch_size = 1
+            triplets_num = len(eval_dataset)
+            batch_num = (triplets_num // batch_size) + int(triplets_num % triplets_num != 0)
+            dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=batch_size)
+            logger.info('test evaluation: triplets_num:{}, batch_size:{}, batch_num:{}, cnt_e:{}'.format(
+                triplets_num, batch_size, batch_num, g.cnt_e
+            ))
             hit_nums, mrr = online_metric([1, 3], framework, dataloader, device, logger)
-            logger.info('[curr performance] epoch:{} loss:{:.6f} mrr:{:3f} time:{:.1f}'.format(
+            logger.info('valid evaluation: triplets_num:{}, batch_size:{}, batch_num:{}, cnt_e:{}'.format(
+                triplets_num, batch_size, batch_num, g.cnt_e
+            ))
+            logger.info('[curr performance] epoch:{} loss:{} mrr:{:3f} time:{}'.format(
                 curr_epoch, curr_epoch_loss, mrr, time.time() - start
             ))
+
+            # 最好的模型 保存
             if mrr > best_performance:
                 best_performance = mrr
-                torch.save(framework.state_dict(), args.save_dir)
                 torch.save(framework.state_dict(), args.save_dir + str(curr_epoch))
-                logger.info('[best performance] epoch:{} loss:{:.6f} mrr:{:3f} time:{:.1f}'.format(
+                logger.info('[best performance] epoch:{} loss:{} mrr:{:3f} time:{}'.format(
                     curr_epoch, curr_epoch_loss, mrr, time.time() - start
                 ))
+            # 本轮结束 保存断点保存断点模型
+            save_checkpoint(framework, optimizer, curr_epoch)
+
     torch.save(framework.state_dict(), args.save_dir)
+
 
 
 if __name__ == '__main__':
@@ -144,7 +180,6 @@ if __name__ == '__main__':
     # 4. 训练 / 测试
     if args.type == "train":
         run_training(framework, args, logger)
-        # torch.save(framework.state_dict(), args.save_dir)
 
     if args.type == "test":
         model_path = args.save_dir + ""
@@ -156,7 +191,7 @@ if __name__ == '__main__':
     ##############################################################################################################
     # 5. 评估选择模型
     if args.type == "test":
-        batch_size = 2
+        batch_size = 1
         eval_dataset = EvalDataset(g.test_triplets,
                                    g.train_triplets + g.aux_triplets + g.dev_triplets + g.test_triplets, g.cnt_e,
                                    'head', logger)

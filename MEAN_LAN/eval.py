@@ -78,7 +78,7 @@ def online_metric(hit_nums, model, eval_loader, device, logger):
         mrr += 1.0 / pos
         for index, hit in enumerate(hit_nums):
             ans[index] += torch.sum(pos < hit).detach_()
-        if (_index + 1) % 20 == 0:
+        if (_index + 1) % 200 == 0:
             logger.info('id:{} time:{}'.format(_index + 1, time.time() - start))
 
     num = len(eval_loader.dataset)

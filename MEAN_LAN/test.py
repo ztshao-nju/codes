@@ -101,4 +101,10 @@ def torch_ones_vs_torch_tile():
 
 
 # compare_velocity_tensor_list()
-torch_ones_vs_torch_tile()
+# torch_ones_vs_torch_tile()
+resume = True
+for i in range(10):
+    print(i)
+    if resume:
+        i = 5
+        resume = False
