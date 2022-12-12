@@ -79,5 +79,25 @@ def compare_velocity_tensor_list():
         ans.append([v1] + curr)
     print('lan_time:{:.8f}'.format(time.time() - start))  # 0.00006771
 
+def torch_ones_vs_torch_tile():
+    num = 1000000
+    # 两个时间差不多
 
-compare_velocity_tensor_list()
+    start = time.time()
+    tail = torch.tensor(range(num))
+    head = torch.ones_like(tail) * 100
+    relation = torch.ones_like(tail) * 100
+    # print(relation)
+    print('torch_ones_time:{:.8f}'.format(time.time() - start))  #
+
+    start = time.time()
+    tail = torch.tensor(range(num))
+    head = torch.tensor(100).tile((num,))
+    relation = torch.tensor(100).tile((num,))
+    # print(relation)
+    print('torch_tile_time:{:.8f}'.format(time.time() - start))  #
+    pass
+
+
+# compare_velocity_tensor_list()
+torch_ones_vs_torch_tile()

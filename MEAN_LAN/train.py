@@ -3,6 +3,7 @@ import os
 import argparse
 import time
 import torch
+import torch.optim as optim
 
 from options.args_hander import ARGs
 from options.logger import logFrame
@@ -12,14 +13,12 @@ from utils.data_pytorch import KGDataset, collate_kg, move_to_device
 from torch.utils.data import DataLoader
 
 from model.framework import Framework
-import torch.optim as optim
+from eval import online_metric, EvalDataset, collate_eval
 
-from eval import eval
-
+os.environ['CUDA_VISIBLE_DEVICES']='1, 2'
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # device = "cpu"
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-
+# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 # 提供默认参数 args_dir提供json参数覆盖默认参数
 def get_params(args_dir=None):
@@ -76,39 +75,46 @@ def run_training(framework, args, logger):
         for batch_pos_triplet, batch_neg_triplet in train_set:
             batch_pos_triplet = move_to_device(batch_pos_triplet, device)
             batch_neg_triplet = move_to_device(batch_neg_triplet, device)
+            hp, rp, tp = batch_pos_triplet
+            hn, rn, tn = batch_neg_triplet
 
             optimizer.zero_grad()
-            loss = framework(batch_pos_triplet, batch_neg_triplet)  # 损失函数
+            loss = framework(hp, rp, tp, hn, rn, tn)  # 损失函数
             loss.backward()
             optimizer.step()
 
-            curr_epoch_loss += loss
+            curr_epoch_loss += loss.item()
             batch_t = time.time()
             batch_id += 1
             if batch_id % 20 == 0:
-                content = 'epoch:{} batch:{} loss:{:.12f} time:{:.1f}'.format(curr_epoch, batch_id, loss,
+                content = 'epoch:{} batch:{} loss:{:.6f} time:{:.1f}'.format(curr_epoch, batch_id, loss,
                                                                               batch_t - start)
                 logger.debug(content)
 
         all_epoch_loss.append(curr_epoch_loss)
         epoch_t = time.time()
         logger.info(
-            '[curr epoch over] epoch:{} loss:{:.12f} time:{:.1f}'.format(curr_epoch, curr_epoch_loss, epoch_t - start))
+            '[curr epoch over] epoch:{} loss:{:.6f} time:{:.1f}'.format(curr_epoch, curr_epoch_loss, epoch_t - start))
 
-        if (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
-            # 判断性能 保留最好的性能
-            hits, mrr = eval('train', framework, g, args, device, logger, sample_pos_num=1000, sample_true_num=1000)
-            logger.info('[curr performance] epoch:{} loss:{:.12f} mrr:{:3f} time:{:.1f}'.format(
-                curr_epoch, curr_epoch_loss, mrr, time.time() - start
-            ))
-            if mrr > best_performance:
-                best_performance = mrr
-                torch.save(framework.state_dict(), args.save_dir)
-                torch.save(framework.state_dict(), args.save_dir + str(curr_epoch))
-                logger.info('[best performance] epoch:{} loss:{:.12f} mrr:{:3f} time:{:.1f}'.format(
-                    curr_epoch, curr_epoch_loss, mrr, time.time() - start
-                ))
-
+        # if (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
+        #     framework.eval()
+        #     # 判断性能 保留最好的性能
+        #     eval_dataset = EvalDataset(g.train_triplets + g.aux_triplets, g.cnt_e, 'head', logger)
+        #     dataloader = DataLoader(eval_dataset, collate_fn=collate_eval, shuffle=False, batch_size=2)
+        #     torch.cuda.empty_cache()
+        #     with torch.no_grad():
+        #         hit_nums, mrr = online_metric([1, 3], framework, dataloader, device, logger)
+        #     logger.info('[curr performance] epoch:{} loss:{:.6f} mrr:{:3f} time:{:.1f}'.format(
+        #         curr_epoch, curr_epoch_loss, mrr, time.time() - start
+        #     ))
+        #     if mrr > best_performance:
+        #         best_performance = mrr
+        #         torch.save(framework.state_dict(), args.save_dir)
+        #         torch.save(framework.state_dict(), args.save_dir + str(curr_epoch))
+        #         logger.info('[best performance] epoch:{} loss:{:.6f} mrr:{:3f} time:{:.1f}'.format(
+        #             curr_epoch, curr_epoch_loss, mrr, time.time() - start
+        #         ))
+    torch.save(framework.state_dict(), args.save_dir)
 
 if __name__ == '__main__':
     ##############################################################################################################
@@ -121,7 +127,7 @@ if __name__ == '__main__':
     ##############################################################################################################
     # 2. 处理数据集
     g = Graph(args, logger)
-    dataset = KGDataset(g.cnt_e, g.train_triplets, args.num_neg, args.predict_mode, logger)
+    dataset = KGDataset(g, args.num_neg, args.predict_mode, logger)
     train_set = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_kg)
 
     ##############################################################################################################
@@ -138,15 +144,43 @@ if __name__ == '__main__':
         # torch.save(framework.state_dict(), args.save_dir)
 
     if args.type == "test":
-        model_path = args.save_dir + "249"
+        model_path = args.save_dir + ""
         logger.info(' 加载模型 {} '.format(model_path))
         ckpt = torch.load(model_path)
         framework.load_state_dict(ckpt)
         framework.to(device)
 
     ##############################################################################################################
+
+    # import torchstat
+    # # from torchstat import stat
+    # torchstat.stat(framework, [(1024,), (1024,), (1024,), (1024,), (1024,), (1024,)])
+
     # 5. 评估选择模型
     if args.type == "test":
-        logger.info('================== start evaluation ==================')
-        hit_nums, mrr = eval('test', framework, g, args, device, logger, sample_pos_num=1000, sample_true_num=1000)
-        logger.info('hit@1:{:.12f} hit@3:{:.12f} hit@10:{:.12f} mrr:{:.12f}'.format(*tuple(hit_nums), mrr))
+        # import torchsummary
+        # torchsummary.summary(framework.cuda(), (3, 224, 224))
+
+
+        # import torchsummary
+        #
+        # summary = torchsummary.summary(framework.cuda(),
+        #                                input_size=[(1024,), (1024,), (1024,), (1024,), (1024,), (1024,)],
+        #                                dtypes=[torch.long, torch.long, torch.long, torch.long, torch.long, torch.long])
+        # print(summary)
+
+
+
+        # logger.info('================== start evaluation ==================')
+        batch_size = 2
+        eval_dataset = EvalDataset(g.train_triplets + g.aux_triplets, g.cnt_e, 'head', logger)
+        # dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=batch_size)
+        dataloader = DataLoader(eval_dataset, collate_fn=collate_eval, shuffle=False, batch_size=batch_size)
+        triplets_num = len(eval_dataset.pos_triplets)
+        batch_num = triplets_num // batch_size + int(triplets_num % triplets_num != 0)
+        logger.info('test evaluation: triplets_num:{}, batch_size:{}, batch_num:{}'.format(
+            triplets_num, batch_size, batch_num
+        ))
+        framework.eval()
+        hit_nums, mrr = online_metric([1, 3], framework, dataloader, device, logger)
+        logger.info('hit@1:{:.6f} hit@3:{:.6f} hit@10:{:.6f} mrr:{:.6f}'.format(*tuple(hit_nums), mrr))

@@ -86,33 +86,39 @@ class Framework(nn.Module):
         batch_score = self.decoder_score(h_out, t_out, rp)
         return batch_score
 
-    def task1_loss(self, batch_pos_triplet_id, batch_neg_triplet_id):
-        hp, rp, tp = batch_pos_triplet_id
-        hn, rn, tn = batch_neg_triplet_id
+    # def task1_loss(self, batch_pos_triplet_id, batch_neg_triplet_id):
+    def task1_loss(self, hp, rp, tp, hn, rn, tn):
+        # hp, rp, tp = batch_pos_triplet_id
+        # hn, rn, tn = batch_neg_triplet_id
         pos_score = self.task1_batch_score(hp, rp, tp)
         neg_score = self.task1_batch_score(hn, rn, tn).view(-1, self.num_neg).sum(dim=-1)
         y = torch.tensor(-1).tile((len(hp))).to(self.device)
         loss = self.loss_function(neg_score, pos_score, y)
         return loss
 
-    def task2_batch_score(self, batch_triplet_id):
-        h, r, t = batch_triplet_id
+    def task2_batch_score(self, h, r, t):
+        # h, r, t = batch_triplet_id
         hp_emb = self.e_emb(h)
         tp_emb = self.e_emb(r)
         rp_emb = self.e_emb(t)
         return self.get_score(hp_emb, tp_emb, rp_emb)
 
-    def task2_loss(self, batch_pos_triplet_id, batch_neg_triplet_id):
-        h, r, t = batch_pos_triplet_id
-        pos_score = self.task2_batch_score(batch_pos_triplet_id)
-        neg_score = self.task2_batch_score(batch_neg_triplet_id).view(-1, self.num_neg).sum(dim=-1)
-        y = torch.tensor(-1).tile((len(h))).to(self.device)
+    def task2_loss(self, hp, rp, tp, hn, rn, tn):
+        # h, r, t = batch_pos_triplet_id
+        pos_score = self.task2_batch_score(hp, rp, tp)
+        neg_score = self.task2_batch_score(hn, rn, tn).view(-1, self.num_neg).sum(dim=-1)
+        y = torch.tensor(-1).tile((len(hp))).to(self.device)
         loss = self.loss_function(neg_score, pos_score, y)
         return loss
 
-    def forward(self, batch_pos_triplet_id, batch_neg_triplet_id):
-        loss1 = self.task1_loss(batch_pos_triplet_id, batch_neg_triplet_id)
-        loss2 = self.task2_loss(batch_pos_triplet_id, batch_neg_triplet_id)
+    def forward(self, hp, rp, tp, hn, rn, tn):
+        """
+        :param batch_pos_triplet_id: (h, r, t)  h:(1024,
+        :param batch_neg_triplet_id:
+        :return:
+        """
+        loss1 = self.task1_loss(hp, rp, tp, hn, rn, tn)
+        loss2 = self.task2_loss(hp, rp, tp, hn, rn, tn)
         return loss1 + loss2
 
     def get_score(self, h, r, t):  # 评估越好的 分数越大

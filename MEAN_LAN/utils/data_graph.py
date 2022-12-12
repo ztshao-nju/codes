@@ -80,7 +80,7 @@ class Graph:
         self.dev_triplets = self.reconstruct_triples(dev_triplets)
         self.test_triplets = self.reconstruct_triples(test_triplets)
         self.train_triplets = train_triplets
-        self.aux_triplets = train_triplets
+        self.aux_triplets = aux_triplets
 
     # 6. 重新整理 dev_triplets, test_triplets
     def reconstruct_triples(self, triplets):
@@ -95,7 +95,7 @@ class Graph:
 
     # 5. 获得 train_g 和 train_w 表示每个实体的邻居信息和邻居r权重分母
     def calcu_neighbor(self):
-        train_g = np.ones((self.cnt_e, self.max_neighbor, 2), dtype=np.dtype('int64'))
+        train_g = np.ones((self.cnt_e, self.max_neighbor, 2), dtype=np.dtype('int16'))
         train_w = np.ones((self.cnt_e, self.max_neighbor), dtype=np.dtype('float32'))
         train_g[:, :, 0] *= self.cnt_r * 2  # 所有的0位置都是2r - 一个取不到的值
         train_g[:, :, 1] *= self.cnt_e  # 所有的0位置都是e - 一个取不到的值
@@ -178,7 +178,7 @@ class Graph:
         for h, r, t in aux_triplets:
             if r >= self.cnt_r:
                 continue
-            if h not in tr_e_set and t in tr_e_set:
+            if h not in tr_e_set and t in tr_e_set:  # 保留unseen实体的邻边信息到训练集中
                 graph[h].append([r, t, 0.])
             if t not in tr_e_set and h in tr_e_set:
                 graph[t].append([r + self.cnt_r, h, 0.])

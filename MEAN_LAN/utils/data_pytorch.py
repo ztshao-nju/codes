@@ -6,18 +6,30 @@ import copy
 import sys
 import numpy as np
 
+from collections import defaultdict
 
 class KGDataset(Dataset):
 
-    def __init__(self, cnt_e, triplets, num_neg, predict_mode, logger):  # g是data_graph 中的 Graph
+    def __init__(self, g, num_neg, predict_mode, logger):  # g是data_graph 中的 Graph
         # self.args = args
         self.num_neg = num_neg
         self.predict_mode = predict_mode
         self.logger = logger
 
-        self.triplets = triplets
-        self.cnt_e = cnt_e
+        self.triplets = g.train_triplets
+        self.cnt_e = g.cnt_e
 
+        self.hr_t = None
+        self.tr_h = None
+        self.hr_t, self.tr_h = self.init_true(g.train_triplets + g.aux_triplets)
+
+    def init_true(self, true_triplets):
+        self.hr_t = defaultdict(list)
+        self.tr_h = defaultdict(list)
+        if self.predict_mode == 'head':
+            for h, r, t in true_triplets:
+                self.hr_t[(h, r)].append(t)
+        return self.hr_t, self.tr_h
     def __getitem__(self, index):
         pos_triplet = self.triplets[index]
         neg_triplet = create_corrupt_triplets(self.cnt_e, pos_triplet, self.num_neg, self.predict_mode)
@@ -55,3 +67,5 @@ def create_corrupt_triplets(cnt_e, pos_triplet, corrupt_num, mode):
         elif mode == 'tail':
             neg_triplets[base_id + 0] = random.randint(0, cnt_e - 1)
     return neg_triplets.tolist()
+
+

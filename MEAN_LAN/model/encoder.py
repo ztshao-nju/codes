@@ -84,7 +84,7 @@ class Encoder_ATTENTION(nn.Module):
         # 2 获得注意力 alpha_Logic + alpha_NN    :(batch_size, max_neighbor)
         attn = self.get_attn(batch_nei_rid, batch_nei_e_Tr_emb, batch_nei_rw, batch_q_rid)
 
-        # 3 获得 e_i^O = attn * Tr(ej)    (batch_size, dim)
+        # 3 获得 e_i^O = \sum attn * Tr(ej)    (batch_size, dim)
         e_out = torch.sum(attn.unsqueeze(-1) * batch_nei_e_Tr_emb, dim=1)
 
         return e_out
