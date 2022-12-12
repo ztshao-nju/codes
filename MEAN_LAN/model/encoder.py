@@ -51,7 +51,7 @@ class Encoder_ATTENTION(nn.Module):
         if self.use_logic_attention and not self.use_nn_attention:
             return batch_nei_rw
 
-        max_neighbor = batch_nei_rid.shape[1]
+        max_neighbor = batch_nei_rid.shape[-1]
 
         # 1. 计算非标准化的NN注意力权重: alpha_{j|i,q}^{'}  :(batch_size, max_neighbor)
         #   a 获取 z_q  :(batch_size, max_neighbor, dim)
@@ -85,6 +85,6 @@ class Encoder_ATTENTION(nn.Module):
         attn = self.get_attn(batch_nei_rid, batch_nei_e_Tr_emb, batch_nei_rw, batch_q_rid)
 
         # 3 获得 e_i^O = \sum attn * Tr(ej)    (batch_size, dim)
-        e_out = torch.sum(attn.unsqueeze(-1) * batch_nei_e_Tr_emb, dim=1)
+        e_out = torch.sum(attn.unsqueeze(-1) * batch_nei_e_Tr_emb, dim=-2)
 
         return e_out

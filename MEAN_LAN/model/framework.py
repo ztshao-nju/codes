@@ -54,7 +54,7 @@ class Framework(nn.Module):
         #    找到每个batch的neighbor的r 和 q 的 corr    :(batch_size, max_neighbor)
         batch_nei_rid = self.train_g[batch_e_id, :, 0]  # (batch_size, max_neighbor)
         batch_nei_eid = self.train_g[batch_e_id, :, 1]  # (batch_size, max_neighbor)
-        batch_nei_e_emb = self.e_emb(batch_nei_eid)  # (batch_size, max_neighbor, dim)
+        batch_nei_e_emb = self.e_emb(batch_nei_eid)  # (batch_size, max_neighbor, dim)  731MB
 
         # 2 获得 Logic attn: batch_nei_rw
         batch_nei_r_denominator = self.train_w[batch_e_id, :]  # (batch_size, max_neighbor)   分母
@@ -63,10 +63,6 @@ class Framework(nn.Module):
         batch_nei_r_numerator = self.corr[batch_nei_q_rid, batch_nei_rid]  # (batch_size, max_neighbor)   分子
         # batch_nei_rw = batch_nei_r_numerator / (batch_nei_r_denominator)  # Logic 权重
         batch_nei_rw = batch_nei_r_numerator / (batch_nei_r_denominator + 1)  # Logic 权重
-        nan_num = torch.sum(torch.isnan(batch_nei_rw))
-        # if nan_num != 0:
-        #     print('nan_num:{}'.format(nan_num))
-        # assert nan_num == 0
 
         # 3 输入encoder 获得实体的表示e_i^O
         if self.aggregate_type == 'attention':  # LAN
@@ -75,21 +71,15 @@ class Framework(nn.Module):
             e_out = self.encoder(batch_nei_rid, batch_nei_e_emb)
         return e_out
 
-    def decoder_score(self, h_out, t_out, r_id):
-        r_out = self.r_emb(r_id)
-        batch_score = self.get_score(h_out, r_out, t_out)
-        return batch_score
-
     def task1_batch_score(self, hp, rp, tp):
         h_out = self.encoder_eout(hp, rp)
         t_out = self.encoder_eout(tp, rp + self.cnt_r)
-        batch_score = self.decoder_score(h_out, t_out, rp)
+
+        r_out = self.r_emb(rp)
+        batch_score = self.get_score(h_out, r_out, t_out)
         return batch_score
 
-    # def task1_loss(self, batch_pos_triplet_id, batch_neg_triplet_id):
     def task1_loss(self, hp, rp, tp, hn, rn, tn):
-        # hp, rp, tp = batch_pos_triplet_id
-        # hn, rn, tn = batch_neg_triplet_id
         pos_score = self.task1_batch_score(hp, rp, tp)
         neg_score = self.task1_batch_score(hn, rn, tn).view(-1, self.num_neg).sum(dim=-1)
         y = torch.tensor(-1).tile((len(hp))).to(self.device)
@@ -97,14 +87,13 @@ class Framework(nn.Module):
         return loss
 
     def task2_batch_score(self, h, r, t):
-        # h, r, t = batch_triplet_id
         hp_emb = self.e_emb(h)
-        tp_emb = self.e_emb(r)
-        rp_emb = self.e_emb(t)
-        return self.get_score(hp_emb, tp_emb, rp_emb)
+        tp_emb = self.e_emb(t)
+
+        rp_emb = self.r_emb(r)
+        return self.get_score(hp_emb, rp_emb, tp_emb)
 
     def task2_loss(self, hp, rp, tp, hn, rn, tn):
-        # h, r, t = batch_pos_triplet_id
         pos_score = self.task2_batch_score(hp, rp, tp)
         neg_score = self.task2_batch_score(hn, rn, tn).view(-1, self.num_neg).sum(dim=-1)
         y = torch.tensor(-1).tile((len(hp))).to(self.device)
@@ -121,8 +110,8 @@ class Framework(nn.Module):
         loss2 = self.task2_loss(hp, rp, tp, hn, rn, tn)
         return loss1 + loss2
 
-    def get_score(self, h, r, t):  # 评估越好的 分数越大
-        h = f.normalize(h, p=2, dim=1)
-        r = f.normalize(r, p=2, dim=1)
-        t = f.normalize(t, p=2, dim=1)
-        return -torch.sum(torch.abs(h + r - t), dim=1)  # (batch_size, )
+    def get_score(self, h, r, t):  # 评估越好的 分数越大     (batch_size, dim)
+        h = f.normalize(h, p=2, dim=-1)
+        r = f.normalize(r, p=2, dim=-1)
+        t = f.normalize(t, p=2, dim=-1)
+        return -torch.sum(torch.abs(h + r - t), dim=-1)  # (batch_size, )
