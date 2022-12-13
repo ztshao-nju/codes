@@ -23,10 +23,11 @@ from utils.data_pytorch import KGDataset, collate_kg, move_to_device
 from torch.utils.data import DataLoader
 
 from model.framework import Framework
-from eval import online_metric, EvalDataset
-from utils.model_ckpt import save_checkpoint, load_checkpoint
+from eval import online_metric, EvalDataset, evaluate
+from utils.model_ckpt import save_checkpoint, load_checkpoint, create_file
 
 
+experiment_name = "save2"
 # device = "cpu"
 # os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
@@ -64,14 +65,25 @@ def get_params(args_dir=None):
         args.load_args(args_dir)
     # args.output()
     args.data_dir = os.path.join("data", args.kg_dir, args.mode)
-    args.save_dir = os.path.join("checkpoints", args.save_dir)
-    # args.log_dir = os.path.join("logs", args.log_dir)
+
+    save_dir_path = os.path.join("checkpoints", experiment_name)
+    if not os.path.exists(save_dir_path):
+        os.mkdir(save_dir_path)
+    args.save_dir = os.path.join(save_dir_path, args.save_dir)
+    args.ckpt_dir = save_dir_path
+
+    save_log_path = os.path.join("logs", experiment_name)
+    if not os.path.exists(save_log_path):
+        os.mkdir(save_log_path)
     if args.type == 'train':
-        args.log_dir = os.path.join("logs", args.log_dir + '_train')
+        args.log_dir = os.path.join(save_log_path, 'log_train')
     elif args.type == 'test':
-        args.log_dir = os.path.join("logs", args.log_dir + '_test')
+        args.log_dir = os.path.join(save_log_path, 'log_test')
+    if not os.path.exists(args.log_dir):
+        create_file(args.log_dir)
+
     if args.checkpoint_path != None:
-        args.checkpoint_path = os.path.join("checkpoints", args.checkpoint_path)
+        args.checkpoint_path = os.path.join("checkpoints", experiment_name, args.checkpoint_path)
 
     assert not (args.resume == 1 and args.checkpoint_path == None)
     return args
@@ -89,7 +101,7 @@ def run_training(framework, args, logger):
     EVALUATION = True
     if args.resume:  # 恢复断点
         start_epoch = load_checkpoint(args, framework, optimizer, logger)
-    for curr_epoch in range(start_epoch + 1, args.num_epoch):
+    for curr_epoch in range(start_epoch, args.num_epoch):
         framework.train()
 
         curr_epoch_loss = 0
@@ -117,26 +129,11 @@ def run_training(framework, args, logger):
 
         # 本轮结束 保存断点保存断点模型
         if (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
-            save_checkpoint(framework, optimizer, curr_epoch)
+            save_checkpoint(framework, optimizer, curr_epoch, args.ckpt_dir)
 
         if EVALUATION and (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
-            # 判断性能
-            answer_pool = g.train_triplets + g.aux_triplets
-            eval_dataset = EvalDataset(g.dev_triplets, answer_pool, g.cnt_e, 'head', logger)
-
-            b_size = 1
-            num = len(eval_dataset)  # 三元组数量
-            b_num = (num // b_size) + int(num % b_size != 0)
-
-            dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=b_size)
-            hit_nums, mrr = online_metric([1, 3], framework, dataloader, device, logger)
-            logger.info(
-                'valid: triplets_num:{}, batch_size:{}, batch_num:{}, cnt_e:{}'.format(num, b_size, b_num, g.cnt_e))
-            logger.info('[curr performance] epoch:{} loss:{} mrr:{:.6f} time:{}'.format(
-                curr_epoch, curr_epoch_loss, mrr.item(), time.time() - start
-            ))
-
-            # 最好的模型 保存
+            # 判断性能 并保存最好的模型
+            hits_nums, mrr = evaluate(framework, g, 'train', logger, device)
             if mrr > best_performance:
                 best_performance = mrr
                 torch.save(framework.state_dict(), args.save_dir + str(curr_epoch))
@@ -172,7 +169,7 @@ if __name__ == '__main__':
         run_training(framework, args, logger)
 
     if args.type == "test":
-        model_path = args.save_dir + "999"
+        model_path = args.save_dir + ""
         logger.info(' 加载模型 {} '.format(model_path))
         ckpt = torch.load(model_path)
         framework.load_state_dict(ckpt)
@@ -181,16 +178,4 @@ if __name__ == '__main__':
     ##############################################################################################################
     # 5. 评估选择模型
     if args.type == "test":
-        batch_size = 1
-        answer_pool = g.train_triplets + g.aux_triplets + g.dev_triplets + g.test_triplets
-        eval_dataset = EvalDataset(g.dev_triplets, answer_pool, g.cnt_e, 'head', logger)
-        dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=batch_size)
-        triplets_num = len(eval_dataset.eval_triplets)
-        batch_num = (triplets_num // batch_size) + int(triplets_num % batch_size != 0)
-        logger.info('test evaluation: triplets_num:{}, batch_size:{}, batch_num:{}, cnt_e:{}'.format(
-            triplets_num, batch_size, batch_num, g.cnt_e
-        ))
-        framework.eval()
-        hit_nums, mrr = online_metric([1, 3, 10], framework, dataloader, device, logger)
-        logger.info('hit@1:{:.6f} hit@3:{:.6f} hit@10:{:.6f} mrr:{:.6f}'.format(
-            hit_nums[0].item(), hit_nums[1].item(), hit_nums[2].item(), mrr.item()))
+        evaluate(framework, g, 'test', logger, device)

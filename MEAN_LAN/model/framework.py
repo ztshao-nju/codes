@@ -37,7 +37,7 @@ class Framework(nn.Module):
 
         if self.aggregate_type == 'attention':
             self.encoder = Encoder_ATTENTION(self.cnt_e, self.cnt_r, self.dim, self.use_logic_attention,
-                                             self.use_nn_attention)
+                                             self.use_nn_attention, device)
         elif self.aggregate_type == 'mean':
             self.encoder = Encoder_Mean(self.cnt_r, self.dim)
         self.encoder.to(device)

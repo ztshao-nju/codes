@@ -3,16 +3,16 @@ import torch
 
 
 
-def save_checkpoint(framework, optimizer, curr_epoch):
+def save_checkpoint(framework, optimizer, curr_epoch, ckpt_dir):
     checkpoint = {
         "net": framework.state_dict(),
         "optimizer": optimizer.state_dict(),
-        "epoch": curr_epoch
+        "epoch": curr_epoch + 1
     }
     checkpoint_path = os.path.join("checkpoints")
     if not os.path.exists(checkpoint_path):
         os.mkdir(checkpoint_path)
-    torch.save(checkpoint, os.path.join('checkpoints', 'ckpt_%s.pth' % (str(curr_epoch))))
+    torch.save(checkpoint, os.path.join(ckpt_dir, 'ckpt_%s.pth' % (str(curr_epoch))))
 
 def load_checkpoint(args, framework, optimizer, logger):
     logger.info(' 加载断点:{} 恢复训练 '.format(args.checkpoint_path))
@@ -22,3 +22,7 @@ def load_checkpoint(args, framework, optimizer, logger):
     start_epoch = checkpoint['epoch']
     args.resume = False
     return start_epoch
+
+def create_file(path):
+    f = open(path, 'w')
+    f.close()

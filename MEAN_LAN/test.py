@@ -99,12 +99,51 @@ def torch_ones_vs_torch_tile():
     print('torch_tile_time:{:.8f}'.format(time.time() - start))  #
     pass
 
+def test_grad():
+    x1 = torch.tensor([1, 2], dtype=torch.float, requires_grad=True)
+    x2 = torch.tensor([3, 4], dtype=torch.float, requires_grad=True)
+    x3 = torch.tensor([5, 6], dtype=torch.float, requires_grad=True)
+    # y = (torch.pow(x1, 3) + torch.pow(x2, 2) + x3).sum()
+    # y.backward()
+    # x4 = x2.clone()
+    # print(x1.grad, x2.grad, x3.grad, x4.grad, x4.requires_grad)
+    # 梯度分别是 3x^2, 2x, 1, None
+    # tensor([ 3., 12.]) tensor([6., 8.]) tensor([1., 1.]) None True
+    t_id_1 = torch.tensor(list(range(5)))
+    emb = nn.Embedding(10, 10)
+    # emb.requires_grad = False
+    t_id = t_id_1 + 1
+    print(t_id.grad)
+    t_emb = emb(t_id)
+    print(t_emb.grad)
 
+
+def test_mask():
+    batch_size = 2
+    max_neighbor = 3
+    dim = 3
+    cnt_e = 10
+    batch_nei_e_Tr_emb = torch.tensor([
+        [[1, 2, 3],
+         [4, 5, 6],
+         [7, 8, 9]],
+        [[0, 1, 2],
+         [3, 4, 5],
+         [6, 7, 8]]
+    ])  # (batch_size, max_neighbor, dim)
+    batch_nei_rid = torch.tensor([
+        [1, 10, 6],
+        [4, 8, 10]
+    ])  # (batch_size, max_neighbor)
+    mask_emb = torch.cat([torch.ones([cnt_e, 1]), torch.zeros([1, 1])], dim=0)  # (cnt_e+1, 1)
+    mask = mask_emb[batch_nei_rid]
+    print(mask)
+    ans = batch_nei_e_Tr_emb * mask
+    print(ans)
+
+test_mask()
+# test_grad()
 # compare_velocity_tensor_list()
 # torch_ones_vs_torch_tile()
-resume = True
-for i in range(10):
-    print(i)
-    if resume:
-        i = 5
-        resume = False
+
+

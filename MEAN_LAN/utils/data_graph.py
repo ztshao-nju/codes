@@ -97,8 +97,8 @@ class Graph:
     def calcu_neighbor(self):
         train_g = np.ones((self.cnt_e, self.max_neighbor, 2), dtype=np.dtype('int16'))
         train_w = np.ones((self.cnt_e, self.max_neighbor), dtype=np.dtype('float32'))
-        train_g[:, :, 0] *= self.cnt_r * 2  # 所有的0位置都是2r - 一个取不到的值
-        train_g[:, :, 1] *= self.cnt_e  # 所有的0位置都是e - 一个取不到的值
+        train_g[:, :, 0] *= self.cnt_r * 2  # 所有的0位置都是2r - 一个取不到的值 pad 在encoder中处理值为pad的
+        train_g[:, :, 1] *= self.cnt_e  # 所有的0位置都是e - 一个取不到的值 pad
 
         for ei in self.graph:
             rlist = self.graph[ei]  # list([rid,tid,weight], ...)

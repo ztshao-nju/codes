@@ -88,3 +88,28 @@ def online_metric(hit_nums, model, eval_loader, device, logger):
     logger.info('================== end online evaluation:{} =================='.format(time.time() - start))
 
     return ans, mrr / num
+
+
+def evaluate(framework, g, eval_type, logger, device):
+    batch_size = 1
+    if eval_type == 'train':
+        eval_triplets = g.test_triplets
+        answer_pool = g.train_triplets + g.aux_triplets
+    elif eval_type == 'test':
+        eval_triplets = g.test_triplets
+        answer_pool = g.train_triplets + g.aux_triplets + g.dev_triplets + g.test_triplets
+
+    eval_dataset = EvalDataset(eval_triplets, answer_pool, g.cnt_e, 'head', logger)
+    dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=batch_size)
+
+    triplets_num = len(eval_dataset.eval_triplets)
+    batch_num = (triplets_num // batch_size) + int(triplets_num % batch_size != 0)
+
+    logger.info('{} evaluation: triplets_num:{}, batch_size:{}, batch_num:{}, cnt_e:{}'.format(
+        eval_type, triplets_num, batch_size, batch_num, g.cnt_e
+    ))
+    hits_nums, mrr = online_metric([1, 3, 10], framework, dataloader, device, logger)
+    logger.info('hits@1:{:.6f} hits@3:{:.6f} hits@10:{:.6f} mrr:{:.6f}'.format(
+        hits_nums[0].item(), hits_nums[1].item(), hits_nums[2].item(), mrr.item()))
+
+    return hits_nums, mrr

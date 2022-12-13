@@ -20,7 +20,7 @@ class Encoder_Mean(nn.Module):
 
 
 class Encoder_ATTENTION(nn.Module):
-    def __init__(self, cnt_e, cnt_r, dim, use_logic_attention, use_nn_attention):
+    def __init__(self, cnt_e, cnt_r, dim, use_logic_attention, use_nn_attention, device):
         super().__init__()
         self.w_r = nn.Embedding(cnt_r * 2 + 1, dim)  # 抽取 w_r
         self.zq_emb = nn.Embedding(cnt_r * 2, dim)
@@ -33,6 +33,12 @@ class Encoder_ATTENTION(nn.Module):
 
         self.use_logic_attention = use_logic_attention
         self.use_nn_attention = use_nn_attention
+
+        # 用pad虚拟邻居填充 aggregate的时候需要mask掉邻居
+        # cnt_e 是取不到的 就是 0
+        self.mask_emb = torch.cat([torch.ones([cnt_e, 1]), torch.zeros([1, 1])], 0).to(device)  # (cnt_e+1, 1)
+        # 令不存在的邻居的权重是负无穷 后面用减法使得负无穷
+        self.mask_weight = torch.cat([torch.zeros(cnt_e, 1), torch.ones([1, 1]) * 1e19], 0).to(device)  # (cnt_e+1, 1)
 
     def projection(self, e, w_r):
         norm2w_r = f.normalize(w_r, p=2, dim=-1)
@@ -65,9 +71,13 @@ class Encoder_ATTENTION(nn.Module):
         tanh = torch.tanh(wa_concat)  # (batch_size, max_neighbor, dim * 2)
         #   e 和u_a 相乘
         _alpha = self.u_a(tanh).squeeze(-1)  # (batch_size, max_neighbor)
+        mask_logic = self.mask_weight[batch_nei_rid]  # (batch_size, max_neighbor, 1)
+        _alpha -= mask_logic.squeeze(-1)
 
         # 2. 计算标准化的NN注意力权重
         alpha = self.softmax(_alpha)  # (batch_size, max_neighbor)
+
+
 
         # 3. 计算Logic+NN权重
         if self.use_logic_attention:
@@ -78,8 +88,12 @@ class Encoder_ATTENTION(nn.Module):
 
     def forward(self, batch_nei_rid, batch_nei_e_emb, batch_nei_rw, batch_q_rid):
         # 1 获得 Tr(ej)   :(batch_size, max_neighbor, dim)
+        #   1.1 获得虚拟的所有邻居ej的Tr_emb
         w_r = self.w_r(batch_nei_rid)  # :(batch_size, max_neighbor, dim)
         batch_nei_e_Tr_emb = self.projection(batch_nei_e_emb, w_r)  # :(batch_size, max_neighbor, dim)
+        #   1.2 通过mask获得真实邻居的Tr_emb
+        mask = self.mask_emb[batch_nei_rid]  # (batch_size, max_neighbor, 1)
+        batch_nei_e_Tr_emb = batch_nei_e_Tr_emb * mask
 
         # 2 获得注意力 alpha_Logic + alpha_NN    :(batch_size, max_neighbor)
         attn = self.get_attn(batch_nei_rid, batch_nei_e_Tr_emb, batch_nei_rw, batch_q_rid)
