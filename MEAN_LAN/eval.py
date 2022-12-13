@@ -74,11 +74,13 @@ def online_metric(hit_nums, model, eval_loader, device, logger):
             batch_score = model.task1_batch_score(h, r, t)
         batch_score = torch.where(labels, -torch.ones_like(batch_score) * 100000.0, batch_score)
         batch_score = batch_score.view(eval_loader.batch_size, -1)
-        pos = (-batch_score).argsort(dim=-1).argmin(dim=-1) + 1
+        pos = (-batch_score).argsort(dim=-1).argmin(dim=-1) + 1  # position
         mrr += 1.0 / pos
         for index, hit in enumerate(hit_nums):
             ans[index] += torch.sum(pos < hit).detach_()
         if (_index + 1) % 200 == 0:
+            logger.debug('id:{} time:{}'.format(_index + 1, time.time() - start))
+        if (_index + 1) % 800 == 0:
             logger.info('id:{} time:{}'.format(_index + 1, time.time() - start))
 
     num = len(eval_loader.dataset)
