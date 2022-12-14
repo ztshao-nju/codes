@@ -1,12 +1,12 @@
 {
   "kg_dir": "fb15K",
   "mode": "head-10",
-  "save_dir": "mean_model",
-  "experiment_name": "mean_save1",
+  "save_dir": "lan_model",
+  "experiment_name": "lan_4096",
 
-  "aggregate_type": "mean",
-  "use_logic_attention":0,
-  "use_nn_attention":0,
+  "aggregate_type": "attention",
+  "use_logic_attention":1,
+  "use_nn_attention":1,
 
   "max_neighbor": 64,
   "dim": 100,
@@ -24,6 +24,5 @@
   "type": "train",
 
   "resume": 0,
-  "checkpoint_path": "ckpt_0.pth"
-
+  "checkpoint_path": "lan_model"
 }

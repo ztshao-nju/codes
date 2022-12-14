@@ -141,7 +141,18 @@ def test_mask():
     ans = batch_nei_e_Tr_emb * mask
     print(ans)
 
-test_mask()
+def test_detach():
+    ans = [0, 0]
+    rank = torch.tensor([[1], [5]])
+    hits_nums = [1, 3]
+    for _index, hits in enumerate(hits_nums):
+        ans[_index] += torch.sum(rank <= hits).detach_()
+
+    print(ans)
+
+
+test_detach()
+# test_mask()
 # test_grad()
 # compare_velocity_tensor_list()
 # torch_ones_vs_torch_tile()

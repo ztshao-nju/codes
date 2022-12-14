@@ -2,7 +2,7 @@
   "kg_dir": "fb15K",
   "mode": "head-10",
   "save_dir": "lan_model",
-  "log_dir": "lan_log_info",
+  "experiment_name": "save3",
 
   "aggregate_type": "attention",
   "use_logic_attention":1,
@@ -13,7 +13,7 @@
 
   "margin": 1.0,
   "weight_decay": 0,
-  "learning_rate": 1e-3,
+  "learning_rate": 4e-3,
 
   "num_epoch": 1000,
   "batch_size": 4096,
@@ -21,7 +21,7 @@
   "num_neg": 1,
 
   "predict_mode": "head",
-  "type": "train",
+  "type": "test",
   "resume": 0,
   "checkpoint_path": "lan_model"
 }

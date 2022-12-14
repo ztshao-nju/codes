@@ -1,19 +1,16 @@
-import copy
 import argparse
 import time
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "2"  # 注意要放到 import torch 之前
-import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0, 1, 2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0, 1, 2"  # 注意要放到 import torch 之前
 import torch
 
-# torch.cuda.set_device(2)
-device = "cuda:1" if torch.cuda.is_available() else "cpu"
+
+# device = "cpu"
+# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 import torch.optim as optim
-import numpy as np
 
 from options.args_hander import ARGs
 from options.logger import logFrame
@@ -23,23 +20,24 @@ from utils.data_pytorch import KGDataset, collate_kg, move_to_device
 from torch.utils.data import DataLoader
 
 from model.framework import Framework
-from eval import online_metric, EvalDataset, evaluate
+from eval import evaluate
 from utils.model_ckpt import save_checkpoint, load_checkpoint, create_file
 
 
-experiment_name = "save2"
-# device = "cpu"
-# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-
+# device 在get_params中确定
 # 提供默认参数 args_dir提供json参数覆盖默认参数
-def get_params(args_dir=None):
+def get_params():
     parser = argparse.ArgumentParser(description='Run Model MEAN or LAN')
 
-    parser.add_argument('--data_dir', '-D', type=str, default="data\\fb15K\\head-10")
-    parser.add_argument('--save_dir', '-S', type=str, default="checkpoints")
-    parser.add_argument('--log_dir', '-L', type=str, default="checkpoints\\log_info")
+    # parser.add_argument('--json_name', '-J', type=str, default="mean_LinkPredict")
+    parser.add_argument('--json_name', '-J', type=str, default="mean_4096")
+    parser.add_argument('--device', '-D', type=str, default='0')
+    parser.add_argument('--kg_dir', '-K', type=str, default="fb15K")
+    parser.add_argument('--mode', '-M', type=str, default="head-10")
+    parser.add_argument('--save_dir', '-S', type=str, default="lan_model")
+    parser.add_argument('--experiment_name', '-L', type=str, default="save")
 
-    parser.add_argument('--aggregate_type', type=str, default="gnn_mean")
+    parser.add_argument('--aggregate_type', type=str, default="mean")
     parser.add_argument('--use_logic_attention', type=int, default=0)
     parser.add_argument('--use_nn_attention', type=int, default=0)
 
@@ -57,22 +55,26 @@ def get_params(args_dir=None):
 
     parser.add_argument('--predict_mode', type=str, default="head")
     parser.add_argument('--type', type=str, default="train")
+
     parser.add_argument('--resume', type=int, default=0)
     parser.add_argument('--checkpoint_path', type=str)
 
     args = ARGs(parser.parse_args())
-    if args_dir != None:
-        args.load_args(args_dir)
+    if args.json_name != None:
+        args.json_name = os.path.join("options", "json", args.json_name + ".json")
+        args.load_args(args.json_name)
     # args.output()
+
+    # 组装其他信息
     args.data_dir = os.path.join("data", args.kg_dir, args.mode)
 
-    save_dir_path = os.path.join("checkpoints", experiment_name)
+    save_dir_path = os.path.join("checkpoints", args.experiment_name)
     if not os.path.exists(save_dir_path):
         os.mkdir(save_dir_path)
     args.save_dir = os.path.join(save_dir_path, args.save_dir)
     args.ckpt_dir = save_dir_path
 
-    save_log_path = os.path.join("logs", experiment_name)
+    save_log_path = os.path.join("logs", args.experiment_name)
     if not os.path.exists(save_log_path):
         os.mkdir(save_log_path)
     if args.type == 'train':
@@ -83,10 +85,12 @@ def get_params(args_dir=None):
         create_file(args.log_dir)
 
     if args.checkpoint_path != None:
-        args.checkpoint_path = os.path.join("checkpoints", experiment_name, args.checkpoint_path)
+        args.checkpoint_path = os.path.join("checkpoints", args.experiment_name, args.checkpoint_path)
 
     assert not (args.resume == 1 and args.checkpoint_path == None)
-    return args
+
+    device = "cuda:" + args.device if torch.cuda.is_available() else "cpu"
+    return args, device
 
 
 def run_training(framework, args, logger):
@@ -120,23 +124,26 @@ def run_training(framework, args, logger):
             curr_epoch_loss += loss.item()
             batch_t = time.time()
             batch_id += 1
-            if batch_id % 20 == 0:
-                logger.debug('epoch:{} batch:{} loss:{} time:{}'.format(curr_epoch, batch_id, loss,
-                                                                        batch_t - start))
+            # if batch_id % 20 == 0:
+            #     logger.debug('epoch:{} batch:{} loss:{} time:{}'.format(curr_epoch, batch_id, loss,
+            #                                                             batch_t - start))
         all_epoch_loss.append(curr_epoch_loss)
         epoch_t = time.time()
-        logger.info('[curr epoch over] epoch:{} loss:{} time:{}'.format(curr_epoch, curr_epoch_loss, epoch_t - start))
+        content = '[curr epoch over] epoch:{} loss:{} time:{}'.format(curr_epoch, curr_epoch_loss, epoch_t - start)
+        if (curr_epoch + 1) % 10 == 0:
+            logger.info(content)
+        logger.debug(content)
 
         # 本轮结束 保存断点保存断点模型
         if (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
             save_checkpoint(framework, optimizer, curr_epoch, args.ckpt_dir)
-
+            torch.save(framework.state_dict(), args.save_dir)
         if EVALUATION and (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
             # 判断性能 并保存最好的模型
             hits_nums, mrr = evaluate(framework, g, 'train', logger, device)
             if mrr > best_performance:
                 best_performance = mrr
-                torch.save(framework.state_dict(), args.save_dir + str(curr_epoch))
+                torch.save(framework.state_dict(), args.save_dir + '_best')
                 logger.info('================== [best performance] ================== ')
 
     torch.save(framework.state_dict(), args.save_dir)
@@ -145,8 +152,7 @@ def run_training(framework, args, logger):
 if __name__ == '__main__':
     ##############################################################################################################
     # 1. 读入参数和log
-    args_dir = os.path.join("options", "json", "lan_LinkPredict.json")
-    args = get_params(args_dir)
+    args, device = get_params()
     log = logFrame()
     logger = log.getlogger(os.path.join(args.log_dir))  # info控制台 debug文件
 
@@ -169,6 +175,7 @@ if __name__ == '__main__':
         run_training(framework, args, logger)
 
     if args.type == "test":
+        # model_path = args.save_dir + "_best"
         model_path = args.save_dir + ""
         logger.info(' 加载模型 {} '.format(model_path))
         ckpt = torch.load(model_path)

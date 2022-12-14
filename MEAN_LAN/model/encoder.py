@@ -16,7 +16,7 @@ class Encoder_Mean(nn.Module):
     def forward(self, batch_nei_rid, batch_nei_e_emb):
         w_r = self.w_r(batch_nei_rid)  # :(batch_size, max_neighbor, dim)
         batch_nei_e_Tr_emb = self.projection(batch_nei_e_emb, w_r)  # :(batch_size, max_neighbor, dim)
-        return torch.mean(batch_nei_e_Tr_emb, dim=1)  # 对邻居信息均值聚合
+        return torch.mean(batch_nei_e_Tr_emb, dim=-2)  # 对邻居信息均值聚合
 
 
 class Encoder_ATTENTION(nn.Module):
@@ -39,6 +39,13 @@ class Encoder_ATTENTION(nn.Module):
         self.mask_emb = torch.cat([torch.ones([cnt_e, 1]), torch.zeros([1, 1])], 0).to(device)  # (cnt_e+1, 1)
         # 令不存在的邻居的权重是负无穷 后面用减法使得负无穷
         self.mask_weight = torch.cat([torch.zeros(cnt_e, 1), torch.ones([1, 1]) * 1e19], 0).to(device)  # (cnt_e+1, 1)
+
+        self.init_values()
+    def init_values(self):
+        nn.init.xavier_normal_(self.w_r.weight)
+        nn.init.xavier_normal_(self.attn_W.weight)
+        nn.init.xavier_normal_(self.u_a.weight)
+        nn.init.xavier_normal_(self.zq_emb.weight)
 
     def projection(self, e, w_r):
         norm2w_r = f.normalize(w_r, p=2, dim=-1)
@@ -76,8 +83,6 @@ class Encoder_ATTENTION(nn.Module):
 
         # 2. 计算标准化的NN注意力权重
         alpha = self.softmax(_alpha)  # (batch_size, max_neighbor)
-
-
 
         # 3. 计算Logic+NN权重
         if self.use_logic_attention:

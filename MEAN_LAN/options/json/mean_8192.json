@@ -2,7 +2,7 @@
   "kg_dir": "fb15K",
   "mode": "head-10",
   "save_dir": "mean_model",
-  "experiment_name": "mean_save1",
+  "experiment_name": "mean_8192",
 
   "aggregate_type": "mean",
   "use_logic_attention":0,
@@ -13,10 +13,10 @@
 
   "margin": 1.0,
   "weight_decay": 0,
-  "learning_rate": 4e-3,
+  "learning_rate": 8e-3,
 
   "num_epoch": 1000,
-  "batch_size": 4096,
+  "batch_size": 8192,
   "epoch_per_checkpoint": 50,
   "num_neg": 1,
 
