@@ -2,7 +2,7 @@
   "kg_dir": "fb15K",
   "mode": "head-10",
   "save_dir": "mean_model",
-  "experiment_name": "mean_save1",
+  "experiment_name": "mean_4096_mask",
 
   "aggregate_type": "mean",
   "use_logic_attention":0,
@@ -21,7 +21,7 @@
   "num_neg": 1,
 
   "predict_mode": "head",
-  "type": "train",
+  "type": "test",
 
   "resume": 0,
   "checkpoint_path": "ckpt_0.pth"

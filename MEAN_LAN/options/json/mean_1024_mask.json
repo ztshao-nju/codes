@@ -1,27 +1,29 @@
 {
   "kg_dir": "fb15K",
   "mode": "head-10",
-  "save_dir": "lan_model",
-  "experiment_name": "save3",
+  "save_dir": "mean_model",
+  "experiment_name": "mean_1024_mask",
 
-  "aggregate_type": "attention",
-  "use_logic_attention":1,
-  "use_nn_attention":1,
+  "aggregate_type": "mean",
+  "use_logic_attention":0,
+  "use_nn_attention":0,
 
   "max_neighbor": 64,
   "dim": 100,
 
   "margin": 1.0,
   "weight_decay": 0,
-  "learning_rate": 4e-3,
+  "learning_rate": 1e-3,
 
   "num_epoch": 1000,
-  "batch_size": 4096,
+  "batch_size": 1024,
   "epoch_per_checkpoint": 50,
   "num_neg": 1,
 
   "predict_mode": "head",
   "type": "test",
+
   "resume": 0,
-  "checkpoint_path": "lan_model"
+  "checkpoint_path": "ckpt_0.pth"
+
 }

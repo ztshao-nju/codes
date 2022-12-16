@@ -4,10 +4,14 @@ import torch.nn.functional as f
 
 
 class Encoder_Mean(nn.Module):
-    def __init__(self, cnt_r, dim):
+    def __init__(self, cnt_r, cnt_e, dim, device):
         super().__init__()
         self.w_r = nn.Embedding(cnt_r * 2 + 1, dim)
+        self.mask_emb = torch.cat([torch.ones([cnt_e, 1]), torch.zeros([1, 1])], 0).to(device)  # (cnt_e+1, 1)
 
+        self.init_values()
+    def init_values(self):
+        nn.init.xavier_normal_(self.w_r.weight)
     def projection(self, e, w_r):
         norm2w_r = f.normalize(w_r, p=2, dim=-1)
         # norm2w_r = w_r / torch.norm(w_r, dim=-1, keepdim=True)  # 要求 w_r 2范数 为 1
@@ -16,6 +20,10 @@ class Encoder_Mean(nn.Module):
     def forward(self, batch_nei_rid, batch_nei_e_emb):
         w_r = self.w_r(batch_nei_rid)  # :(batch_size, max_neighbor, dim)
         batch_nei_e_Tr_emb = self.projection(batch_nei_e_emb, w_r)  # :(batch_size, max_neighbor, dim)
+        # 考虑添加 mask  但是LAN代码里没加
+        mask = self.mask_emb[batch_nei_rid]  # (batch_size, max_neighbor, 1)
+        batch_nei_e_Tr_emb = batch_nei_e_Tr_emb * mask
+
         return torch.mean(batch_nei_e_Tr_emb, dim=-2)  # 对邻居信息均值聚合
 
 

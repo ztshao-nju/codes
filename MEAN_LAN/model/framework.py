@@ -34,13 +34,18 @@ class Framework(nn.Module):
         ##############################################
         self.e_emb = nn.Embedding(self.cnt_e + 1, self.dim)  # +1 是为了处理没有遇到的实体 id是cnt_e
         self.r_emb = nn.Embedding(self.cnt_r, self.dim)  # r一定出现过 不用+1
+        self.init_values()
 
         if self.aggregate_type == 'attention':
             self.encoder = Encoder_ATTENTION(self.cnt_e, self.cnt_r, self.dim, self.use_logic_attention,
                                              self.use_nn_attention, device)
         elif self.aggregate_type == 'mean':
-            self.encoder = Encoder_Mean(self.cnt_r, self.dim)
+            self.encoder = Encoder_Mean(self.cnt_r, self.cnt_e, self.dim, device)
         self.encoder.to(device)
+
+    def init_values(self):
+        nn.init.xavier_normal_(self.e_emb.weight)
+        nn.init.xavier_normal_(self.r_emb.weight)
 
     def encoder_eout(self, batch_e_id, batch_q_rid):
         """

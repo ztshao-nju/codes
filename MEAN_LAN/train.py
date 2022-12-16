@@ -96,7 +96,8 @@ def get_params():
 def run_training(framework, args, logger):
     all_epoch_loss = []
     b_num = len(dataset) // args.batch_size + (len(dataset) % args.batch_size != 0)
-    logger.info('epoch:{} batch_size:{} batch_num:{} device:{}'.format(args.num_epoch, args.batch_size, b_num, device))
+    logger.info('epoch:{} batch_size:{} batch_num:{} device:{} learning_rate:{} exp_name:{}'.format(
+        args.num_epoch, args.batch_size, b_num, device, args.learning_rate, args.experiment_name))
     logger.info('================== start training ==================')
     start = time.time()
     best_performance = 0  # mrr
@@ -176,7 +177,7 @@ if __name__ == '__main__':
 
     if args.type == "test":
         # model_path = args.save_dir + "_best"
-        model_path = args.save_dir + ""
+        model_path = args.save_dir + "_best"
         logger.info(' 加载模型 {} '.format(model_path))
         ckpt = torch.load(model_path)
         framework.load_state_dict(ckpt)
