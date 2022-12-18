@@ -68,7 +68,8 @@ class Graph:
             load_data(args, logger)
 
         # 2.3. 获取cnt数据 + 构造graph + 计算r之间的correlation(train,没有aux)
-        self.get_cnt_graph(train_triplets, aux_triplets, args.max_neighbor, args, logger)
+        #   通过r限制更新aux_triplets
+        self.graph, aux_triplets = self.get_cnt_graph(train_triplets, aux_triplets, args.max_neighbor, args, logger)
 
         # 4. 计算 Logic 权重分母 self.graph[i][j][2] 表示实体ei第j条邻居信息的r的Logic分母
         self.graph = self.calcu_max_denominator()
@@ -95,7 +96,7 @@ class Graph:
 
     # 5. 获得 train_g 和 train_w 表示每个实体的邻居信息和邻居r权重分母
     def calcu_neighbor(self):
-        train_g = np.ones((self.cnt_e, self.max_neighbor, 2), dtype=np.dtype('int16'))
+        train_g = np.ones((self.cnt_e, self.max_neighbor, 2), dtype=np.dtype('int64'))
         train_w = np.ones((self.cnt_e, self.max_neighbor), dtype=np.dtype('float32'))
         train_g[:, :, 0] *= self.cnt_r * 2  # 所有的0位置都是2r - 一个取不到的值 pad 在encoder中处理值为pad的
         train_g[:, :, 1] *= self.cnt_e  # 所有的0位置都是e - 一个取不到的值 pad
@@ -138,9 +139,9 @@ class Graph:
         corr = np.zeros((self.cnt_r * 2 + 1, self.cnt_r * 2 + 1), dtype=np.dtype('float32'))
         freq = np.zeros((self.cnt_r * 2 + 1))  # 记录每个r出现的次数-分母
         for e in graph:
-            neighbor_list = list(set([neighbor[0] for neighbor in graph[e]]))
+            neighbor_list = list(set([neighbor[0] for neighbor in graph[e]]))  # neighbor[0] -> r_id
             num_neighbor_list = len(neighbor_list)
-            for id in range(num_neighbor_list):  # 遍历实体e的每个邻居信息 ri, ti
+            for id in range(num_neighbor_list):  # 遍历实体e的每个邻居信息 ri, ei
                 ri = neighbor_list[id]
                 freq[ri] += 1
                 for id2 in range(id + 1, num_neighbor_list):
@@ -151,17 +152,20 @@ class Graph:
             assert freq[ri] != 0
             corr[ri] = (corr[ri] * 1.0) / freq[ri]
 
+        # for ri in range(self.cnt_r * 2):
+        #     corr[ri][ri] = corr[ri].mean()
+
         self.corr = corr.transpose()  #
-        for ri in range(self.cnt_r * 2):
-            corr[ri][ri] = corr[ri].mean()
 
     # 2. 获取cnt数据 + 构造graph(train+aux 并且用max_neighbor限制)
     def get_cnt_graph(self, train_triplets, aux_triplets, max_neighbor, args, logger):
-        # 1. 获取 tr实体数量、tr+aux实体数量、关系数量
+        # 1. 获取 tr实体数量， 删选合法的aux_triplets, 获取tr+aux实体数量、关系数量
         h_set, r_set, t_set = [set([triple[id] for triple in train_triplets]) for id in range(3)]
         tr_e_set = h_set.union(t_set)  # train_entity_set
         self.cnt_tr_e = max(tr_e_set) + 1  # 加1是因为id是从0开始的 实际的个数=最大id+1 10336
         self.cnt_r = max(r_set) + 1  # 1170
+        # 筛选r合法的aux
+        aux_triplets = [triplet for triplet in aux_triplets if triplet[1] < self.cnt_r]  # 筛选 r
         aux_h_set, aux_t_set = [set([triple[id] for triple in aux_triplets]) for id in [0, 2]]
         e_set = tr_e_set.union(aux_h_set.union(aux_t_set))
         self.cnt_e = max(e_set) + 1  # train + aux 的实体数量  14295
@@ -169,12 +173,13 @@ class Graph:
         # 2. 从 train_triplets 和 aux_triplets 和合法部分构造 graph
         graph = defaultdict(list)
         for h, r, t in train_triplets:
-            graph[h].append([r, t, 0.])
-            graph[t].append([r + self.cnt_r, t, 0.])
+            graph[h].append([r, t, 0.])  # [h, r, t]
+            graph[t].append([r + self.cnt_r, h, 0.])  # [t, r', h]
 
         # 3. 中途计算corr
         self.calcu_correlation(graph)  # 计算 correlation
 
+        # 2.2 从 aux 中添加三元组
         for h, r, t in aux_triplets:
             if r >= self.cnt_r:
                 continue
@@ -182,4 +187,4 @@ class Graph:
                 graph[h].append([r, t, 0.])
             if t not in tr_e_set and h in tr_e_set:
                 graph[t].append([r + self.cnt_r, h, 0.])
-        self.graph = graph
+        return graph, aux_triplets

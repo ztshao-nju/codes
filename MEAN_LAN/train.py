@@ -26,12 +26,12 @@ from utils.model_ckpt import save_checkpoint, load_checkpoint, create_file
 
 # device 在get_params中确定
 # 提供默认参数 args_dir提供json参数覆盖默认参数
-def get_params():
+def get_params(json_name=None):
     parser = argparse.ArgumentParser(description='Run Model MEAN or LAN')
 
     # parser.add_argument('--json_name', '-J', type=str, default="mean_LinkPredict")
-    parser.add_argument('--json_name', '-J', type=str, default="mean_4096")
-    parser.add_argument('--device', '-D', type=str, default='0')
+    parser.add_argument('--json_name', '-J', type=str)
+    parser.add_argument('--device', '-D', type=str, default='2')
     parser.add_argument('--kg_dir', '-K', type=str, default="fb15K")
     parser.add_argument('--mode', '-M', type=str, default="head-10")
     parser.add_argument('--save_dir', '-S', type=str, default="lan_model")
@@ -60,6 +60,8 @@ def get_params():
     parser.add_argument('--checkpoint_path', type=str)
 
     args = ARGs(parser.parse_args())
+    if json_name != None:
+        args.json_name = json_name
     if args.json_name != None:
         args.json_name = os.path.join("options", "json", args.json_name + ".json")
         args.load_args(args.json_name)

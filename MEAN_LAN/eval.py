@@ -52,7 +52,7 @@ class EvalDataset(Dataset):
     def get_label(self, labels):
         complet_labels = torch.zeros(self.cnt_e + 1, dtype=torch.bool)
         for la in labels:
-            complet_labels[la] = True
+            complet_labels[la+1] = True
         complet_labels[0] = False  # 注意是 False
         return complet_labels
 
@@ -92,7 +92,7 @@ def online_metric(hits_nums, model, eval_loader, device, logger):
 
 
 def evaluate(framework, g, eval_type, logger, device):
-    batch_size = 2  # 4
+    batch_size = 1  # 4
     num_workers = 0  # 不确定是不是它导致的debug卡住
     if eval_type == 'train':
         eval_triplets = g.dev_triplets

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as f
+import torch.nn.functional as F
 from .encoder import Encoder_ATTENTION, Encoder_Mean
 
 
@@ -29,7 +29,8 @@ class Framework(nn.Module):
 
         # loss(x1, x2, y) = max(0, -y*(x1-x2)+margin)
         # max(0, -(-1) * (neg - pos) + margin)  y=-1    neg=x1, pos=x2
-        self.loss_function = nn.MarginRankingLoss(margin=self.margin, reduction='sum')
+        # 注意 LAN 里 reduction 是 mean
+        self.loss_function = nn.MarginRankingLoss(margin=self.margin, reduction='mean')
 
         ##############################################
         self.e_emb = nn.Embedding(self.cnt_e + 1, self.dim)  # +1 是为了处理没有遇到的实体 id是cnt_e
@@ -116,7 +117,10 @@ class Framework(nn.Module):
         return loss1 + loss2
 
     def get_score(self, h, r, t):  # 评估越好的 分数越大     (batch_size, dim)
-        h = f.normalize(h, p=2, dim=-1)
-        r = f.normalize(r, p=2, dim=-1)
-        t = f.normalize(t, p=2, dim=-1)
-        return -torch.sum(torch.abs(h + r - t), dim=-1)  # (batch_size, )
+        h = F.normalize(h, p=2, dim=-1)
+        r = F.normalize(r, p=2, dim=-1)
+        t = F.normalize(t, p=2, dim=-1)
+        # abs 也可以可微的 但是 LAN 用的 ReLU
+        # F.relu(h+r-t)
+        return -torch.sum(F.relu(h + r - t), dim=-1)
+        # return -torch.sum(torch.abs(h + r - t), dim=-1)  # (batch_size, )

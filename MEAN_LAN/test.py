@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as f
+import torch.nn.functional as F
 import time
 import copy
+
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 a = list(range(1, 6))
 b = list(range(6, 11))
@@ -27,7 +29,7 @@ def test2():
 
 def test3():
     v = torch.tensor([a, b], dtype=torch.float)
-    v2 = f.normalize(v, p=2, dim=-1)
+    v2 = F.normalize(v, p=2, dim=-1)
     print(v2)
 
 
@@ -150,8 +152,21 @@ def test_detach():
 
     print(ans)
 
+def test_differentiable():
+    v = torch.tensor(list(range(-5, 3)), dtype=torch.float16, requires_grad=True, device=device)
+    print(v.requires_grad)
+    v2 = torch.tensor(list(range(2, 10)), dtype=torch.float16, requires_grad=True, device=device)
+    ans_abs = torch.abs(v)
+    ans_sum = torch.sum(v)
+    ans_f = F.relu(v)
+    # ans_max = torch.max(v, 0)
+    print('torch.abs: {}'.format(ans_abs.grad_fn))
+    print('torch.sum: {}'.format(ans_sum.grad_fn))
+    print('F.relu', ans_f.grad_fn)
+    # print('torch.max: {}'.format(ans_max.grad_fn))
 
-test_detach()
+test_differentiable()
+# test_detach()
 # test_mask()
 # test_grad()
 # compare_velocity_tensor_list()
