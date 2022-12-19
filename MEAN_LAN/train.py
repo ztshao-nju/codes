@@ -35,7 +35,7 @@ def get_params(json_name=None):
     parser.add_argument('--kg_dir', '-K', type=str, default="fb15K")
     parser.add_argument('--mode', '-M', type=str, default="head-10")
     parser.add_argument('--save_dir', '-S', type=str, default="lan_model")
-    parser.add_argument('--experiment_name', '-L', type=str, default="save")
+    parser.add_argument('--experiment_name', '-E', type=str, default="save")
 
     parser.add_argument('--aggregate_type', type=str, default="mean")
     parser.add_argument('--use_logic_attention', type=int, default=0)
@@ -65,42 +65,35 @@ def get_params(json_name=None):
     if args.json_name != None:
         args.json_name = os.path.join("options", "json", args.json_name + ".json")
         args.load_args(args.json_name)
-    # args.output()
 
+    # args.output()
+    args, device = set_path(args)
+
+    return args, device
+
+def set_path(args):
     # 组装其他信息
     args.data_dir = os.path.join("data", args.kg_dir, args.mode)
 
-    save_dir_path = os.path.join("checkpoints", args.experiment_name)
-    if not os.path.exists(save_dir_path):
-        os.mkdir(save_dir_path)
-    args.save_dir = os.path.join(save_dir_path, args.save_dir)
-    args.ckpt_dir = save_dir_path
+    args.save_dir = os.path.join("checkpoints", args.experiment_name)
+    if not os.path.exists(args.save_dir):
+        os.mkdir(args.save_dir)
 
-    save_log_path = os.path.join("logs", args.experiment_name)
-    if not os.path.exists(save_log_path):
-        os.mkdir(save_log_path)
-    if args.type == 'train':
-        args.log_dir = os.path.join(save_log_path, 'log_train')
-    elif args.type == 'test':
-        args.log_dir = os.path.join(save_log_path, 'log_test')
-    if not os.path.exists(args.log_dir):
-        create_file(args.log_dir)
+    args.log_dir = os.path.join("logs", args.experiment_name)
 
     if args.checkpoint_path != None:
         args.checkpoint_path = os.path.join("checkpoints", args.experiment_name, args.checkpoint_path)
-
     assert not (args.resume == 1 and args.checkpoint_path == None)
 
     device = "cuda:" + args.device if torch.cuda.is_available() else "cpu"
     return args, device
 
-
-def run_training(framework, args, logger):
+def run_training(framework, optimizer, g, train_set, device, args, logger):
     all_epoch_loss = []
-    b_num = len(dataset) // args.batch_size + (len(dataset) % args.batch_size != 0)
-    logger.info('epoch:{} batch_size:{} batch_num:{} device:{} learning_rate:{} exp_name:{}'.format(
+    b_num = len(train_set.dataset) // args.batch_size + (len(train_set.dataset) % args.batch_size != 0)
+    logger.debug('epoch:{} batch_size:{} batch_num:{} device:{} learning_rate:{} exp_name:{}'.format(
         args.num_epoch, args.batch_size, b_num, device, args.learning_rate, args.experiment_name))
-    logger.info('================== start training ==================')
+    logger.debug('================== start training ==================')
     start = time.time()
     best_performance = 0  # mrr
 
@@ -112,7 +105,6 @@ def run_training(framework, args, logger):
         framework.train()
 
         curr_epoch_loss = 0
-        batch_id = 0
         for batch_pos_triplet, batch_neg_triplet in train_set:
             batch_pos_triplet = move_to_device(batch_pos_triplet, device)
             batch_neg_triplet = move_to_device(batch_neg_triplet, device)
@@ -125,45 +117,42 @@ def run_training(framework, args, logger):
             optimizer.step()
 
             curr_epoch_loss += loss.item()
-            batch_t = time.time()
-            batch_id += 1
-            # if batch_id % 20 == 0:
-            #     logger.debug('epoch:{} batch:{} loss:{} time:{}'.format(curr_epoch, batch_id, loss,
-            #                                                             batch_t - start))
         all_epoch_loss.append(curr_epoch_loss)
         epoch_t = time.time()
         content = '[curr epoch over] epoch:{} loss:{} time:{}'.format(curr_epoch, curr_epoch_loss, epoch_t - start)
-        if (curr_epoch + 1) % 10 == 0:
-            logger.info(content)
         logger.debug(content)
 
         # 本轮结束 保存断点保存断点模型
         if (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
-            save_checkpoint(framework, optimizer, curr_epoch, args.ckpt_dir)
-            torch.save(framework.state_dict(), args.save_dir)
+            save_checkpoint(framework, optimizer, curr_epoch, args.save_dir)
+
         if EVALUATION and (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
             # 判断性能 并保存最好的模型
             hits_nums, mrr = evaluate(framework, g, 'train', logger, device)
             if mrr > best_performance:
                 best_performance = mrr
-                torch.save(framework.state_dict(), args.save_dir + '_best')
-                logger.info('================== [best performance] ================== ')
+                torch.save(framework.state_dict(), os.path.join(args.save_dir, "best"))
+                logger.debug('================== [best performance] ================== ')
 
-    torch.save(framework.state_dict(), args.save_dir)
+    torch.save(framework.state_dict(), os.path.join(args.save_dir, "last"))
+
+def process_data(args, logger):
+    g = Graph(args, logger)
+    dataset = KGDataset(g, args.num_neg, args.predict_mode, logger)
+    train_set = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_kg)
+    return g, dataset, train_set
 
 
-if __name__ == '__main__':
+def train():
     ##############################################################################################################
     # 1. 读入参数和log
-    args, device = get_params()
+    args, device = get_params('lan')
     log = logFrame()
     logger = log.getlogger(os.path.join(args.log_dir))  # info控制台 debug文件
 
     ##############################################################################################################
     # 2. 处理数据集
-    g = Graph(args, logger)
-    dataset = KGDataset(g, args.num_neg, args.predict_mode, logger)
-    train_set = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, collate_fn=collate_kg)
+    g, dataset, train_set = process_data(args, logger)
 
     ##############################################################################################################
     # 3. 模型 优化器
@@ -175,12 +164,11 @@ if __name__ == '__main__':
     ##############################################################################################################
     # 4. 训练 / 测试
     if args.type == "train":
-        run_training(framework, args, logger)
+        run_training(framework, optimizer, g, train_set, device, args, logger)
 
     if args.type == "test":
-        # model_path = args.save_dir + "_best"
-        model_path = args.save_dir + "_best"
-        logger.info(' 加载模型 {} '.format(model_path))
+        model_path = os.path.join(args.save_dir, "best")
+        logger.debug(' 加载模型 {} '.format(model_path))
         ckpt = torch.load(model_path)
         framework.load_state_dict(ckpt)
         framework.to(device)
@@ -189,3 +177,7 @@ if __name__ == '__main__':
     # 5. 评估选择模型
     if args.type == "test":
         evaluate(framework, g, 'test', logger, device)
+
+
+if __name__ == '__main__':
+    train()

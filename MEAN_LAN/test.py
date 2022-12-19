@@ -165,7 +165,18 @@ def test_differentiable():
     print('F.relu', ans_f.grad_fn)
     # print('torch.max: {}'.format(ans_max.grad_fn))
 
-test_differentiable()
+
+def test_logger():
+    from options.logger import logFrame
+    log1 = logFrame()
+    logger1 = log1.getlogger('file1')
+    log2 = logFrame()
+    logger2 = log2.getlogger('file2')
+    logger1.info('test')
+    logger2.info('test2')
+
+test_logger()
+# test_differentiable()
 # test_detach()
 # test_mask()
 # test_grad()

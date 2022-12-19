@@ -1,7 +1,7 @@
 import logging
 import time
 import os
-
+from utils.model_ckpt import create_file
 
 class logFrame:
 
@@ -13,19 +13,19 @@ class logFrame:
             # 控制台输出
             control = logging.StreamHandler()
             control_formatter = logging.Formatter(fmt="%(asctime)s,%(filename)s,行号:%(lineno)d,"
-                                                      "描述:%(message)s", datefmt="%Y/%m/%d %H:%M:%S")
+                                                      "%(message)s", datefmt="%H:%M:%S")
             self.add_output(self.logger, control, control_formatter, logging.INFO)
-            # filename=log_path + "./log/{}_log.txt".format(time.strftime("%Y_%m_%d %H_%M_%S", time.localtime()))
+            filename=log_path + "./log/{}_log.txt".format(time.strftime("%Y_%m_%d %H_%M_%S", time.localtime()))
 
             # 文件输出
             if log_path != None:
                 if not os.path.exists(log_path):
-                    os.makedirs(log_path)
+                    create_file(log_path)
                 file = logging.FileHandler(
                     filename=log_path,
                     encoding="utf8")
                 file_formatter = logging.Formatter(fmt="%(asctime)s,%(filename)s,行号:%(lineno)d,"
-                                                       "描述:%(message)s", datefmt="%Y/%m/%d %H:%M:%S")
+                                                       "%(message)s", datefmt="%H:%M:%S")
                 self.add_output(self.logger, file, file_formatter, logging.DEBUG)
 
         return self.logger

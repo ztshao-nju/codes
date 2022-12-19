@@ -58,7 +58,7 @@ class EvalDataset(Dataset):
 
 
 def online_metric(hits_nums, model, eval_loader, device, logger):
-    logger.info('================== start online evaluation ==================')
+    logger.debug('================== start online evaluation ==================')
     start = time.time()
     nums = len(hits_nums)
     ans = [0.0 for i in range(nums)]
@@ -81,12 +81,12 @@ def online_metric(hits_nums, model, eval_loader, device, logger):
             ans[id] += torch.sum(rank <= hits).detach_()
         if (_index + 1) % 200 == 0:
             logger.debug('id:{} time:{}'.format(_index + 1, time.time() - start))
-        if (_index + 1) % 1000 == 0:
-            logger.info('id:{} time:{}'.format(_index + 1, time.time() - start))
+        # if (_index + 1) % 1000 == 0:
+        #     logger.info('id:{} time:{}'.format(_index + 1, time.time() - start))
 
     num = len(eval_loader.dataset)
     ans = [100.0 * v / num for v in ans]
-    logger.info('================== end online evaluation:{} =================='.format(time.time() - start))
+    logger.debug('================== end online evaluation:{} =================='.format(time.time() - start))
 
     return ans, mrr / num
 
@@ -107,11 +107,11 @@ def evaluate(framework, g, eval_type, logger, device):
     triplets_num = len(eval_dataset.eval_triplets)
     batch_num = (triplets_num // batch_size) + int(triplets_num % batch_size != 0)
 
-    logger.info('{} evaluation: triplets_num:{}, batch_size:{}, batch_num:{}, cnt_e:{}, num_workers:{}'.format(
+    logger.debug('{} evaluation: triplets_num:{}, batch_size:{}, batch_num:{}, cnt_e:{}, num_workers:{}'.format(
         eval_type, triplets_num, batch_size, batch_num, g.cnt_e, num_workers
     ))
     hits_nums, mrr = online_metric([1, 3, 10], framework, dataloader, device, logger)
-    logger.info('hits@1:{:.6f} hits@3:{:.6f} hits@10:{:.6f} mrr:{:.6f}'.format(
+    logger.debug('hits@1:{:.6f} hits@3:{:.6f} hits@10:{:.6f} mrr:{:.6f}'.format(
         hits_nums[0].item(), hits_nums[1].item(), hits_nums[2].item(), mrr.item()))
 
     return hits_nums, mrr

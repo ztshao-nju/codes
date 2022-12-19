@@ -5,6 +5,9 @@ import time
 
 
 class ARGs:
+    def __init__(self):
+        pass
+
     def __init__(self, args=None):
         if args != None:
             for arg in vars(args):
