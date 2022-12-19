@@ -58,7 +58,7 @@ class EvalDataset(Dataset):
 
 
 def online_metric(hits_nums, model, eval_loader, device, logger):
-    logger.debug('================== start online evaluation ==================')
+    logger.info('================== start online evaluation ==================')
     start = time.time()
     nums = len(hits_nums)
     ans = [0.0 for i in range(nums)]
@@ -86,7 +86,7 @@ def online_metric(hits_nums, model, eval_loader, device, logger):
 
     num = len(eval_loader.dataset)
     ans = [100.0 * v / num for v in ans]
-    logger.debug('================== end online evaluation:{} =================='.format(time.time() - start))
+    logger.info('================== end online evaluation:{} =================='.format(time.time() - start))
 
     return ans, mrr / num
 

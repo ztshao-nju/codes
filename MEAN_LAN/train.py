@@ -91,9 +91,9 @@ def set_path(args):
 def run_training(framework, optimizer, g, train_set, device, args, logger):
     all_epoch_loss = []
     b_num = len(train_set.dataset) // args.batch_size + (len(train_set.dataset) % args.batch_size != 0)
-    logger.debug('epoch:{} batch_size:{} batch_num:{} device:{} learning_rate:{} exp_name:{}'.format(
+    logger.info('epoch:{} batch_size:{} batch_num:{} device:{} learning_rate:{} exp_name:{}'.format(
         args.num_epoch, args.batch_size, b_num, device, args.learning_rate, args.experiment_name))
-    logger.debug('================== start training ==================')
+    logger.info('================== start training ==================')
     start = time.time()
     best_performance = 0  # mrr
 
@@ -122,8 +122,10 @@ def run_training(framework, optimizer, g, train_set, device, args, logger):
         content = '[curr epoch over] epoch:{} loss:{} time:{}'.format(curr_epoch, curr_epoch_loss, epoch_t - start)
         logger.debug(content)
 
+
         # 本轮结束 保存断点保存断点模型
         if (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
+            logger.info(content)
             save_checkpoint(framework, optimizer, curr_epoch, args.save_dir)
 
         if EVALUATION and (curr_epoch + 1) % args.epoch_per_checkpoint == 0:
@@ -132,7 +134,7 @@ def run_training(framework, optimizer, g, train_set, device, args, logger):
             if mrr > best_performance:
                 best_performance = mrr
                 torch.save(framework.state_dict(), os.path.join(args.save_dir, "best"))
-                logger.debug('================== [best performance] ================== ')
+                logger.info('================== [best performance] ================== ')
 
     torch.save(framework.state_dict(), os.path.join(args.save_dir, "last"))
 
