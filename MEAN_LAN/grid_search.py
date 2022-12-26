@@ -15,7 +15,7 @@ from model.framework import Framework
 
 def output_best_param(best_param, logger):
     logger.info('============ best param ============')
-    logger.info('dim:{}  margin:{}  lr:{}'.format(best_param['dim'], best_param['margin'], best_param['lr']))
+    logger.info('dim:{}  margin:{}  weight_decay:{}'.format(best_param['dim'], best_param['margin'], best_param['weight_decay']))
     hits_nums = best_param['hits']
     mrr = best_param['mrr']
     logger.info('hits@1:{:.6f} hits@3:{:.6f} hits@10:{:.6f} mrr:{:.6f}'.format(
@@ -33,19 +33,23 @@ if __name__ == '__main__':
     best_param = {
         "dim": 0,
         "margin": 0,
-        "lr": 0,
+        "weight_decay": 0,
         "mrr": None,
         "hits": None
     }
-
+    FINISH = ['d100_m1.0_w0', 'd200_m1.0_w0', 'd200_m1.0_w0.0001', 'd200_m2.0_w0']
     # for dim in [50, 100, 200]:
-    for margin in [0.5, 1.0, 2.0, 4.0]:
-        for lr in [0.001, 0.005, 0.01]:
+    # for margin in [1.0, 1.5, 2.0, 4.0]:
+    for margin in [1.5]:
+        for w in [0]:
             # args.dim = dim
+
             dim = args.dim
             args.margin = margin
-            args.learning_rate = lr
-            args.experiment_name = 'd{}_m{}_l{}'.format(dim, margin, lr)
+            args.weight_decay = w
+            args.experiment_name = 'd{}_m{}_w{}'.format(dim, margin, w)
+            if args.experiment_name in FINISH:
+                continue
             logger.info('======================== {} begin ========================'.format(args.experiment_name))
 
             args, device = set_path(args)
@@ -66,7 +70,7 @@ if __name__ == '__main__':
                 best_param = {
                     "dim": dim,
                     "margin": margin,
-                    "lr": lr,
+                    "weight_decay": w,
                     "mrr": mrr,
                     "hits": hits_nums
                 }

@@ -16,8 +16,7 @@ from utils.data_graph import Graph
 
 class EvalDataset(Dataset):
 
-    def __init__(self, eval_triplets, answer_pool, cnt_e, predict_mode, logger):
-        self.predict_mode = predict_mode
+    def __init__(self, eval_triplets, answer_pool, cnt_e, logger):
         self.logger = logger
 
         self.eval_triplets = eval_triplets
@@ -31,9 +30,8 @@ class EvalDataset(Dataset):
 
     def init_true(self):
         self.hr_t = defaultdict(list)
-        if self.predict_mode == 'head':
-            for h, r, t in self.answer_pool:
-                self.hr_t[(h, r)].append(t)
+        for h, r, t in self.answer_pool:
+            self.hr_t[(h, r)].append(t)
         return self.hr_t
 
     def __getitem__(self, index):
@@ -101,7 +99,7 @@ def evaluate(framework, g, eval_type, logger, device):
         eval_triplets = g.test_triplets
         answer_pool = g.train_triplets + g.aux_triplets + g.dev_triplets + g.test_triplets
 
-    eval_dataset = EvalDataset(eval_triplets, answer_pool, g.cnt_e, 'head', logger)
+    eval_dataset = EvalDataset(eval_triplets, answer_pool, g.cnt_e, logger)
     dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=batch_size, num_workers=num_workers)
 
     triplets_num = len(eval_dataset.eval_triplets)

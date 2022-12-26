@@ -2,7 +2,7 @@
   "kg_dir": "fb15K",
   "mode": "head-10",
   "save_dir": "lan_model",
-  "experiment_name": "lan_4096",
+  "experiment_name": "lan_same",
 
   "aggregate_type": "attention",
   "use_logic_attention":1,
@@ -21,7 +21,7 @@
   "num_neg": 1,
 
   "predict_mode": "head",
-  "type": "train",
+  "type": "test",
 
   "resume": 0,
   "checkpoint_path": "ckpt_0.pth"

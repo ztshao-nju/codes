@@ -20,18 +20,6 @@ class KGDataset(Dataset):
         self.triplets = g.train_triplets
         self.cnt_e = g.cnt_e
 
-        self.hr_t = None
-        self.tr_h = None
-        self.hr_t, self.tr_h = self.init_true(g.train_triplets + g.aux_triplets)
-
-    def init_true(self, true_triplets):
-        self.hr_t = defaultdict(list)
-        self.tr_h = defaultdict(list)
-        if self.predict_mode == 'head':
-            for h, r, t in true_triplets:
-                self.hr_t[(h, r)].append(t)
-        return self.hr_t, self.tr_h
-
     def __getitem__(self, index):
         pos_triplet = self.triplets[index]
         neg_triplet = create_corrupt_triplets(self.cnt_e, pos_triplet, self.num_neg, self.predict_mode)

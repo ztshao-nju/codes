@@ -29,15 +29,14 @@ from utils.model_ckpt import save_checkpoint, load_checkpoint, create_file
 def get_params(json_name=None):
     parser = argparse.ArgumentParser(description='Run Model MEAN or LAN')
 
-    # parser.add_argument('--json_name', '-J', type=str, default="mean_LinkPredict")
     parser.add_argument('--json_name', '-J', type=str)
-    parser.add_argument('--device', '-D', type=str, default='2')
+    parser.add_argument('--device', '-D', type=str, default='0')
     parser.add_argument('--kg_dir', '-K', type=str, default="fb15K")
     parser.add_argument('--mode', '-M', type=str, default="head-10")
-    parser.add_argument('--save_dir', '-S', type=str, default="lan_model")
-    parser.add_argument('--experiment_name', '-E', type=str, default="save")
 
-    parser.add_argument('--aggregate_type', type=str, default="mean")
+    parser.add_argument('--experiment_name', '-E', type=str)
+    parser.add_argument('--aggregate_type', '-A', type=str)  # mean/attention
+
     parser.add_argument('--use_logic_attention', type=int, default=0)
     parser.add_argument('--use_nn_attention', type=int, default=0)
 
@@ -49,12 +48,12 @@ def get_params(json_name=None):
     parser.add_argument('--learning_rate', type=float, default=1e-3)
 
     parser.add_argument('--num_epoch', type=int, default=1000)
-    parser.add_argument('--batch_size', type=int, default=1024)
+    parser.add_argument('--batch_size', type=int, default=4096)
     parser.add_argument('--epoch_per_checkpoint', type=int, default=50)
     parser.add_argument('--num_neg', type=int, default=1)
 
     parser.add_argument('--predict_mode', type=str, default="head")
-    parser.add_argument('--type', type=str, default="train")
+    parser.add_argument('--type', type=str)  # train/test
 
     parser.add_argument('--resume', type=int, default=0)
     parser.add_argument('--checkpoint_path', type=str)
@@ -148,10 +147,16 @@ def process_data(args, logger):
 def train():
     ##############################################################################################################
     # 1. 读入参数和log
-    args, device = get_params('lan')
+    json_name = None
+    args, device = get_params()
     log = logFrame()
-    logger = log.getlogger(os.path.join(args.log_dir))  # info控制台 debug文件
+    logger = log.getlogger(args.log_dir)  # info控制台 debug文件
+    logger.info('================== 开始运行 ==================')
+    logger.info('日志路径:{}'.format(args.log_dir))
+    logger.info('JSON路径:{}'.format(json_name if json_name != None else 'None'))
+    logger.info('TYPE:{}'.format(args.type))
 
+    # print('log_dir:{}'.format(args.log_dir))
     ##############################################################################################################
     # 2. 处理数据集
     g, dataset, train_set = process_data(args, logger)

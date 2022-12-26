@@ -175,7 +175,17 @@ def test_logger():
     logger1.info('test')
     logger2.info('test2')
 
-test_logger()
+def test_loss():
+    neg = torch.tensor([[1, 2, 3], [1, 2, 3]], dtype=torch.float)
+    pos = torch.tensor([[3, 4, 5], [1, 2, 3]], dtype=torch.float)
+    margin = torch.tensor([1])
+    ans = margin - pos + neg
+    print(ans)
+    ans = torch.mean(F.relu(ans), dim=-1)
+    print(ans)
+
+test_loss()
+# test_logger()
 # test_differentiable()
 # test_detach()
 # test_mask()

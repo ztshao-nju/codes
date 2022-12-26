@@ -1,15 +1,14 @@
 {
   "kg_dir": "fb15K",
   "mode": "head-10",
-  "save_dir": "lan_model",
-  "experiment_name": "lan_4096",
+  "experiment_name": "lan_d200",
 
   "aggregate_type": "attention",
   "use_logic_attention":1,
   "use_nn_attention":1,
 
   "max_neighbor": 64,
-  "dim": 100,
+  "dim": 200,
 
   "margin": 1.0,
   "weight_decay": 0,
@@ -21,7 +20,7 @@
   "num_neg": 1,
 
   "predict_mode": "head",
-  "type": "train",
+  "type": "test",
 
   "resume": 0,
   "checkpoint_path": "ckpt_0.pth"

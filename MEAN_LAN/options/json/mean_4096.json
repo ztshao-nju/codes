@@ -21,7 +21,7 @@
   "num_neg": 1,
 
   "predict_mode": "head",
-  "type": "test",
+  "type": "train",
 
   "resume": 0,
   "checkpoint_path": "ckpt_0.pth"
