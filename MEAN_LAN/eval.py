@@ -16,12 +16,14 @@ from utils.data_graph import Graph
 
 class EvalDataset(Dataset):
 
-    def __init__(self, eval_triplets, answer_pool, cnt_e, logger):
+    def __init__(self, eval_triplets, answer_pool, cnt_tr_e, cnt_e, logger):
         self.logger = logger
 
         self.eval_triplets = eval_triplets
         self.answer_pool = answer_pool
-        self.cnt_e = cnt_e  # 注意 with torch.no_grad(): 取消梯度计算可以降低内存
+        self.generate_e = cnt_tr_e
+        # self.cnt_tr_e = cnt_tr_e
+        # self.cnt_e = cnt_e  # 注意 with torch.no_grad(): 取消梯度计算可以降低内存
         self.hr_t = None
         self.tr_h = None
 
@@ -35,20 +37,29 @@ class EvalDataset(Dataset):
         return self.hr_t
 
     def __getitem__(self, index):
-        # TODO: 只包括了 'head' 模式的
+        # # TODO: 只包括了 'head' 模式的
+        # pos_triplet = self.eval_triplets[index]
+        # h, r, t = pos_triplet
+        # # neg_triplets = [[h, r, eid] for eid in range(self.cnt_e)]
+        # neg_triplets = [[h, r, eid] for eid in range(self.generate_e)]
+        # triplets = [pos_triplet] + neg_triplets
+        # labels = self.get_label(self.hr_t[(h, r)])
+        # triplets = torch.tensor(triplets).transpose(0, 1)
+        # return triplets[0], triplets[1], triplets[2], labels
+
         pos_triplet = self.eval_triplets[index]
         h, r, t = pos_triplet
-        neg_triplets = [[h, r, eid] for eid in range(self.cnt_e)]
+        true = self.hr_t[(h, r)]
+        neg_triplets = [[h, r, eid] for eid in range(self.generate_e) if eid not in true]
         triplets = [pos_triplet] + neg_triplets
-        labels = self.get_label(self.hr_t[(h, r)])
         triplets = torch.tensor(triplets).transpose(0, 1)
-        return triplets[0], triplets[1], triplets[2], labels
+        return triplets[0], triplets[1], triplets[2]
 
     def __len__(self):
         return len(self.eval_triplets)
 
     def get_label(self, labels):
-        complet_labels = torch.zeros(self.cnt_e + 1, dtype=torch.bool)
+        complet_labels = torch.zeros(self.generate_e + 1, dtype=torch.bool)
         for la in labels:
             complet_labels[la+1] = True
         complet_labels[0] = False  # 注意是 False
@@ -61,18 +72,20 @@ def online_metric(hits_nums, model, eval_loader, device, logger):
     nums = len(hits_nums)
     ans = [0.0 for i in range(nums)]
     mrr = 0
-    for _index, (h, r, t, labels) in enumerate(eval_loader):
+    # for _index, (h, r, t, labels) in enumerate(eval_loader):
+    for _index, (h, r, t) in enumerate(eval_loader):
         h = h.to(device)
         r = r.to(device)
         t = t.to(device)
-        labels = labels.to(device)  # labels 代表在当前批次中 是否是正样本
+        # labels = labels.to(device)  # labels 代表在当前批次中 是否是正样本
 
         with torch.no_grad():
             model.eval()
             batch_score = model.task1_batch_score(h, r, t)
 
-        batch_score = torch.where(labels, -torch.ones_like(batch_score) * 100000.0, batch_score)
+        # batch_score = torch.where(labels, -torch.ones_like(batch_score) * 100000.0, batch_score)
         batch_score = batch_score.view(eval_loader.batch_size, -1)
+
         rank = (-batch_score).argsort(dim=-1).argmin(dim=-1) + 1.0  # position
         mrr += torch.sum(1.0 / rank)
         for id, hits in enumerate(hits_nums):
@@ -88,18 +101,19 @@ def online_metric(hits_nums, model, eval_loader, device, logger):
 
     return ans, mrr / num
 
-
 def evaluate(framework, g, eval_type, logger, device):
     batch_size = 1  # 4
     num_workers = 0  # 不确定是不是它导致的debug卡住
     if eval_type == 'train':
-        eval_triplets = g.dev_triplets
+        evaluate_size = 1000  # LAN 源代码里 size 是 1000
+        eval_triplets = random.sample(g.dev_triplets, evaluate_size)
+        # eval_triplets = g.dev_triplets
         answer_pool = g.train_triplets + g.aux_triplets
     elif eval_type == 'test':
         eval_triplets = g.test_triplets
         answer_pool = g.train_triplets + g.aux_triplets + g.dev_triplets + g.test_triplets
 
-    eval_dataset = EvalDataset(eval_triplets, answer_pool, g.cnt_e, logger)
+    eval_dataset = EvalDataset(eval_triplets, answer_pool, g.cnt_tr_e,  g.cnt_e, logger)
     dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=batch_size, num_workers=num_workers)
 
     triplets_num = len(eval_dataset.eval_triplets)

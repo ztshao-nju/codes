@@ -16,5 +16,5 @@
   "num_neg": 1,
 
   "predict_mode": "head",
-  "type": "train"
+  "type": "test"
 }

@@ -38,10 +38,10 @@ class Framework(nn.Module):
         self.init_values()
 
         if self.aggregate_type == 'attention':
-            self.encoder = Encoder_ATTENTION(self.cnt_e, self.cnt_r, self.dim, self.use_logic_attention,
+            self.encoder = Encoder_ATTENTION(args.no_mask, self.cnt_e, self.cnt_r, self.dim, self.use_logic_attention,
                                              self.use_nn_attention, device)
         elif self.aggregate_type == 'mean':
-            self.encoder = Encoder_Mean(self.cnt_r, self.cnt_e, self.dim, device)
+            self.encoder = Encoder_Mean(args.no_mask, self.cnt_r, self.cnt_e, self.dim, device)
         self.encoder.to(device)
 
     def init_values(self):
