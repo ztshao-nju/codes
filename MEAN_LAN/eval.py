@@ -119,8 +119,8 @@ def evaluate(framework, g, eval_type, logger, device):
     triplets_num = len(eval_dataset.eval_triplets)
     batch_num = (triplets_num // batch_size) + int(triplets_num % batch_size != 0)
 
-    logger.debug('{} evaluation: triplets_num:{}, batch_size:{}, batch_num:{}, cnt_e:{}, num_workers:{}'.format(
-        eval_type, triplets_num, batch_size, batch_num, g.cnt_e, num_workers
+    logger.debug('{} evaluation: triplets_num:{}, batch_size:{}, batch_num:{}, generate_e:{}, num_workers:{}'.format(
+        eval_type, triplets_num, batch_size, batch_num, eval_dataset.generate_e, num_workers
     ))
     hits_nums, mrr = online_metric([1, 3, 10], framework, dataloader, device, logger)
     logger.debug('hits@1:{:.6f} hits@3:{:.6f} hits@10:{:.6f} mrr:{:.6f}'.format(
